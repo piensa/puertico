@@ -44,58 +44,25 @@
     allowUnfree = true;
   };
 
-  networking.networkmanager.enable = false;
+  networking.networkmanager.enable = true;
   networking.nameservers = [ "8.8.8.8" ];
-#  networking = {
-#     wireless = {
-#        enable = true;
-#        networks =  {
-#         # "751290253545" = {
-#         #    psk= "356957455920";
-#         #  };
-#         "piensa0000_PLUS" = {
-#             psk = "piensablack1";
-#          };
-#        };
-#     };
-#
-#     hostName = "x";
-#     defaultGateway = "192.168.1.1";
-#     nameservers = [ "1.1.1.1" ];
-#     interfaces."eno1" = {
-#        ipv4.addresses = [ { address = "192.168.100.1"; prefixLength = 24; } ];
-#        ipv4.routes = [
-#          { address = "192.168.100.0"; prefixLength = 24; via = "192.168.1.1"; }
-#         ];
-#     }; 
-#     interfaces."wlp3s0" = {
-#        ipv4.addresses = [ { address = "192.168.1.218"; prefixLength = 24; } ];
-#        ipv4.routes = [
-#          { address = "192.168.1.218"; prefixLength = 24; via = "192.168.1.1"; }
-#         ];
-#     }; 
-#
-#
-#  };
 
   time.timeZone = "America/Bogota";
 
   i18n = {
     consoleFont = "lat9w-16";
-#    consoleKeyMap = "dvorak";
     defaultLocale = "en_US.UTF-8";
   };
 
-#  services.xserver.layout = "dvorak";
 
   sound.enable = true;
   hardware.pulseaudio.enable = true;
   hardware.bluetooth.enable = true;
- # services.xserver.enable = true;
- # services.xserver.displayManager.sddm.enable = true;
- # services.xserver.displayManager.sddm.autoLogin.enable = true;
- # services.xserver.displayManager.sddm.autoLogin.user = "x";
- # services.xserver.desktopManager.plasma5.enable = true;
+  services.xserver.enable = true;
+  services.xserver.displayManager.sddm.enable = true;
+  services.xserver.displayManager.sddm.autoLogin.enable = true;
+  services.xserver.displayManager.sddm.autoLogin.user = "x";
+  services.xserver.desktopManager.plasma5.enable = true;
 
   users.users.x = {
     isNormalUser = true;
