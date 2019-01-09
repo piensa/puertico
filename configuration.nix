@@ -31,13 +31,13 @@
   system.stateVersion = "18.09"; 
 
   environment.systemPackages = with pkgs; [
+    git
     wget vim tmux htop git ripgrep unzip
     gnumake gcc libcxx libcxxabi llvm ninja clang
     python3 nodejs nodePackages.node2nix go
     firefox kmail vscode vlc
     blender godot gimp inkscape
     libreoffice
-    postgresql100
   ];
 
   nixpkgs.config = {
@@ -68,21 +68,6 @@
     isNormalUser = true;
     home = "/x";
     extraGroups = ["networkmanager"];
-  };
-
-  services.postgresql = {
-    enable = true;
-    package = pkgs.postgresql100;
-    enableTCPIP = true;
-    authentication = pkgs.lib.mkOverride 10 ''
-      local all all trust
-      host all all ::1/128 trust
-    '';
-    initialScript = pkgs.writeText "backend-initScript" ''
-      CREATE ROLE x WITH LOGIN PASSWORD 'x' CREATEDB;
-      CREATE DATABASE x;
-      GRANT ALL PRIVILEGES ON DATABASE x TO x;
-    '';
   };
 
 }
