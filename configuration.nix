@@ -14,6 +14,11 @@
       fsType = "btrfs";
     };
 
+  fileSystems."/d" =
+    { device = "/dev/disk/by-label/data";
+      fsType = "btrfs";
+    };
+
   fileSystems."/boot" =
     { device = "/dev/disk/by-label/boot";
       fsType = "vfat";
@@ -33,6 +38,7 @@
   environment.systemPackages = with pkgs; [
     git
     wget vim tmux htop git ripgrep unzip
+    tcpdump telnet
     gnumake gcc libcxx libcxxabi llvm ninja clang
     python3 nodejs nodePackages.node2nix go
     firefox kmail vscode vlc
