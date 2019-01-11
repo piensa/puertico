@@ -35,20 +35,27 @@
 
   system.stateVersion = "18.09"; 
 
+  nixpkgs.config = {
+    allowUnfree = true;
+    packageOverrides = pkgs: {
+      nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
+        inherit pkgs;
+       };
+    };
+  };
+
   environment.systemPackages = with pkgs; [
     git
     wget vim tmux htop git ripgrep unzip
-    tcpdump telnet
+    tcpdump telnet openssh
     gnumake gcc libcxx libcxxabi llvm ninja clang
     python3 nodejs nodePackages.node2nix go
     firefox kmail vscode vlc
     blender godot gimp inkscape
     libreoffice
+#    nur.repos.piensa.tegola
+#    nur.repos.piensa.hydra
   ];
-
-  nixpkgs.config = {
-    allowUnfree = true;
-  };
 
   networking.networkmanager.enable = true;
   networking.nameservers = [ "8.8.8.8" ];
@@ -69,6 +76,7 @@
   services.xserver.displayManager.sddm.autoLogin.enable = true;
   services.xserver.displayManager.sddm.autoLogin.user = "x";
   services.xserver.desktopManager.plasma5.enable = true;
+  services.sshd.enable = true;
 
   users.users.x = {
     isNormalUser = true;
