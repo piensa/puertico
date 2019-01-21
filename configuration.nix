@@ -37,11 +37,6 @@
 
   nixpkgs.config = {
     allowUnfree = true;
-    packageOverrides = pkgs: {
-      nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
-        inherit pkgs;
-       };
-    };
   };
 
   environment.systemPackages = with pkgs; [
@@ -53,12 +48,17 @@
     firefox kmail vscode vlc
     blender godot gimp inkscape
     libreoffice
-#    nur.repos.piensa.tegola
-#    nur.repos.piensa.hydra
   ];
 
   networking.networkmanager.enable = true;
   networking.nameservers = [ "8.8.8.8" ];
+  networking.hostName = "nuc";
+
+  networking.firewall.allowedTCPPortRanges = [
+  { from = 5432; to = 5432; }
+  { from = 9000; to = 9000; }
+  ];
+  networking.firewall.allowPing = true;
 
   time.timeZone = "America/Bogota";
 
@@ -78,10 +78,20 @@
   services.xserver.desktopManager.plasma5.enable = true;
   services.sshd.enable = true;
 
+  virtualisation.libvirtd.enable = true;
+
+  services.minio = {
+     enable = true;
+     accessKey = "opendata";
+     secretKey = "opendata";
+     dataDir = "/d/";
+     listenAddress = "0.0.0.0:9000";
+  };
+ 
   users.users.x = {
     isNormalUser = true;
     home = "/x";
-    extraGroups = ["networkmanager"];
+    extraGroups = ["networkmanager" "libvirtd"];
   };
 
 }
