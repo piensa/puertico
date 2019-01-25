@@ -58,6 +58,9 @@
         allowedTCPPortRanges = [
            { from = 443; to = 444; }
          ];
+        allowedUDPPortRanges = [
+           { from = 60000; to = 61000; }
+        ];
         allowPing = true;
      };
   };
@@ -88,6 +91,8 @@
     passwordAuthentication = false; 
     permitRootLogin = "no";
   };
+
+  programs.mosh.enable = true;
 
   virtualisation.libvirtd.enable = true;
 
