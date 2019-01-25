@@ -135,13 +135,53 @@ services.nginx = {
       root "/d/puerti.co";
 
       location / {
+        default_type text/plain;
+        content_by_lua_block {
+          ngx.say('puertico is an experiment on geospatial data sharing')
+        }
+      }
+
+      location /secure {
        default_type text/plain;
        content_by_lua_block {
-         ngx.say('puerti.co is an experiment on geospatial data sharing')
+         ngx.say('Secure area.')
+       }
+
+       access_by_lua_block {
+         -- Some variable declarations.
+         local cookie = ngx.var.cookie_MyToken
+         local hmac = ""
+         local timestamp = ""
+ 
+         -- Check that the cookie exists.
+         if cookie ~= nil and cookie:find(":") ~= nil then
+           -- If there's a cookie, split off the HMAC signature
+           -- and timestamp.
+           local divider = cookie:find(":")
+           hmac = cookie:sub(divider+1)
+           timestamp = cookie:sub(0, divider-1)
+
+           -- Verify that the signature is valid.
+           if hmac_sha1("some very secret string", timestamp) == hmac and tonumber(timestamp) >= os.time() then
+             return
+           end
+         end
+
+         -- Internally rewrite the URL so that we serve
+         -- /auth/ if there's no valid token.
+	 ngx.exec("/auth/")
+       }
+      }
+
+       location /auth/ {
+         default_type text/plain;
+         content_by_lua_block {
+            ngx.say('Please log in')
+         }
        }
      }
     }
- }
+ 
  '';
 
 };
