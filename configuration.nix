@@ -103,21 +103,55 @@
     openssh.authorizedKeys.keys = [ "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2SGK2vk4KGjkqUcDEdBYwHLj9utMTTShyPYAWBQx8jL0ezUoHqPl7ChJqLuI2ZWMVTW2QnGHl2oZjJRK6ngF0i9hhpjjONEHOdK9YHHaXeUXgad0mAT1R+365jIR1PYOvx9kC7pk8V1Iw3EHmnRRlAHtH19sAfGiyUopZ/N2gjVE0QMhotlKjwDlG9mQR/iFJq604R/nvAvTNXgHuuVou25t1kJkGNxAbiy3jOjKQHlR4NTTB2ttAtodJDU45+FNIWOiZYLbolYdAt9VLIYngDv9aSbxUCsF2ObHZ+Ovqmx0+BK1EKkZ01SYgwIQp3Nfk09xx03y28oFlvG+O6GX3 x@xs-MacBook.local" ];
 
   };
-
- nixpkgs.config.packageOverrides = pkgs:
- {
-  nginx = pkgs.nginx.override {
-    modules = [
-      pkgs.nginxModules.lua
-      pkgs.nginxModules.dav
-      pkgs.nginxModules.moreheaders
-    ];
+  users.users.puertico = {
+    home = "/d";
+    isNormalUser = false;
   };
- };
+
+security.acme.certs = {
+  "puerti.co" = {
+    webroot = "/d/challenges";
+    email = "ingenieroariel@gmail.com";
+  };
+};
+
+ services.postgresql = {
+    enable = true;
+    package = pkgs.postgresql100;
+    enableTCPIP = true;
+    extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql100; }) ];
+
+    authentication = pkgs.lib.mkOverride 10 ''
+      local all all trust
+      host all all localhost trust
+    '';
+    initialScript = pkgs.writeText "backend-initScript" ''
+      CREATE ROLE puertico;
+      CREATE DATABASE puertico;
+      GRANT ALL PRIVILEGES ON DATABASE puertico TO puertico;
+
+      USE DATABASE puertico;
+
+      CREATE TABLE maps (
+        id serial PRIMARY KEY,
+        title varchar(255) NOT NULL,
+        data jsonb NOT NULL,
+        metadata jsonb NOT NULL,
+        created_at timestamp DEFAULT current_timestamp
+      );
+
+      INSERT INTO maps(title, data, metadata) VALUES (
+          'one', 
+          '{ "layers": [] }'::jsonb,
+          '{ "contact": { "phone": "555-5555" } }'::jsonb
+      ); 
+    '';
+};
 
 services.nginx = {
   enable = true;
-  package = pkgs.nginx;
+  user = "puertico";
+  package = pkgs.openresty;
   config = ''
   events {
     worker_connections  4096;
@@ -125,6 +159,10 @@ services.nginx = {
   http {
     include       ${pkgs.nginx}/conf/mime.types;
     default_type  application/octet-stream;
+
+    upstream database {
+      postgres_server 127.0.0.1 dbname=puertico user=puertico;
+    }
 
     server {
       listen 443 ssl;
@@ -141,6 +179,37 @@ services.nginx = {
         }
       }
 
+    location /maps {
+      postgres_pass database;
+      rds_json on;
+      postgres_query    HEAD GET  "SELECT * FROM maps";
+      
+      postgres_escape $title $arg_title;
+      postgres_escape $body  $arg_body;
+      postgres_query
+        POST "INSERT INTO maps (title, body) VALUES($title, $body) RETURNING *";
+      postgres_rewrite  POST changes 201;
+    }
+
+    location ~ /maps/(?<id>\d+) {
+      postgres_pass database;
+      rds_json  on;
+      postgres_escape $escaped_id $id;
+      postgres_query    HEAD GET  "SELECT * FROM maps WHERE id=$escaped_id";
+      postgres_rewrite  HEAD GET  no_rows 410;
+
+      postgres_escape $title $arg_title;
+      postgres_escape $body  $arg_body;
+      postgres_query
+        PUT "UPDATE maps SET title=$title, body=$body WHERE id=$escaped_id RETURNING *";
+      postgres_rewrite  PUT no_changes 410;
+
+      postgres_query    DELETE  "DELETE FROM maps WHERE id=$escaped_id";
+      postgres_rewrite  DELETE  no_changes 410;
+      postgres_rewrite  DELETE  changes 204;
+    }
+
+
       location /secure {
        default_type text/plain;
        content_by_lua_block {
@@ -149,22 +218,11 @@ services.nginx = {
 
        access_by_lua_block {
          -- Some variable declarations.
-         local cookie = ngx.var.cookie_MyToken
-         local hmac = ""
-         local timestamp = ""
- 
-         -- Check that the cookie exists.
-         if cookie ~= nil and cookie:find(":") ~= nil then
-           -- If there's a cookie, split off the HMAC signature
-           -- and timestamp.
-           local divider = cookie:find(":")
-           hmac = cookie:sub(divider+1)
-           timestamp = cookie:sub(0, divider-1)
-
-           -- Verify that the signature is valid.
-           if hmac_sha1("some very secret string", timestamp) == hmac and tonumber(timestamp) >= os.time() then
-             return
-           end
+         local authorization, err = ngx.req.get_headers()["authorization"]
+         
+         if authorization then
+           -- FIXME: Implement checking the authorization is valid.
+           return
          end
 
          -- Internally rewrite the URL so that we serve
@@ -184,13 +242,6 @@ services.nginx = {
  
  '';
 
-};
-
-security.acme.certs = {
-  "puerti.co" = {
-    webroot = "/d/challenges";
-    email = "ingenieroariel@gmail.com";
-  };
 };
 
 }
