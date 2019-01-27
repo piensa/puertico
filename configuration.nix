@@ -56,6 +56,7 @@
      nameservers = [ "1.1.1.1" "8.8.8.8"];
      firewall = {
         allowedTCPPortRanges = [
+           { from = 80; to = 80; }
            { from = 443; to = 444; }
          ];
         allowedUDPPortRanges = [
@@ -134,15 +135,15 @@ security.acme.certs = {
 
       CREATE TABLE maps (
         id serial PRIMARY KEY,
-        title varchar(255) NOT NULL,
-        data jsonb NOT NULL,
-        metadata jsonb NOT NULL,
+        datasets jsonb,
+        config jsonb,
+        info jsonb,
         created_at timestamp DEFAULT current_timestamp
       );
 
-      INSERT INTO maps(title, data, metadata) VALUES (
-          'one', 
+      INSERT INTO maps(datasets, config, info) VALUES (
           '{ "layers": [] }'::jsonb,
+          '{ "bbox": [] }'::jsonb,
           '{ "contact": { "phone": "555-5555" } }'::jsonb
       ); 
     '';
@@ -165,29 +166,95 @@ services.nginx = {
     }
 
     server {
+      listen 80;
+      server_name puerti.co;
+      return 301 https://$server_name$request_uri;
+
+      location /.well-known/acme-challenge {
+         root /d/challenges;
+      }
+    }
+
+    server {
       listen 443 ssl;
-      server_name *.puerti.co;
+      server_name puerti.co *.puerti.co;
       ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
  
       root "/d/puerti.co";
 
       location / {
-        default_type text/plain;
+        default_type application/json;
         content_by_lua_block {
-          ngx.say('puertico is an experiment on geospatial data sharing')
+          ngx.status = 200
+          local cjson = require "cjson"
+          local server_name = ngx.var.server_name;
+          local protocol = "https://"
+          local json = cjson.encode({
+            links = {
+              { 
+                href = protocol .. server_name,
+                rel = "self",
+                type = "application/json",
+                title = "this document"
+              },
+              { 
+                href = protocol .. server_name .. "/api",
+                rel = "service",
+                type = "application/openapi+json;version=3.0",
+                title = "the API definition"
+              },
+              { 
+                href = protocol .. server_name .. "/conformance",
+                rel = "conformance",
+                type = "application/json",
+                title = "WFS 3.0 conformance classes implemented by this server"
+              },
+              { 
+                href = protocol .. server_name .. "/collections",
+                rel = "data",
+                type = "application/json",
+                title = "Metadata about the feature collections"
+              }
+            }
+          })
+          ngx.print(json)
+          ngx.exit(ngx.OK)
         }
       }
 
+    location /api {
+       default_type text/plain;
+       content_by_lua_block {
+         ngx.say('api')
+       }
+    }
+
+
+    location /conformance {
+       default_type text/plain;
+       content_by_lua_block {
+         ngx.say('conformance')
+       }
+    }
+
+    location /collections {
+       default_type text/plain;
+       content_by_lua_block {
+         ngx.say('collections')
+       }
+    }
+
     location /maps {
+      client_max_body_size 500M;
       postgres_pass database;
       rds_json on;
-      postgres_query    HEAD GET  "SELECT * FROM maps";
+      postgres_query    HEAD GET  "SELECT id, created_at FROM maps";
+ 
+      postgres_escape $body $request_body;
       
-      postgres_escape $title $arg_title;
-      postgres_escape $body  $arg_body;
       postgres_query
-        POST "INSERT INTO maps (title, body) VALUES($title, $body) RETURNING *";
+        POST "INSERT INTO maps (datasets, config, info) VALUES($body::jsonb->'datasets', $body::jsonb->'config', $body::jsonb->'info') RETURNING *";
       postgres_rewrite  POST changes 201;
     }
 
@@ -198,10 +265,10 @@ services.nginx = {
       postgres_query    HEAD GET  "SELECT * FROM maps WHERE id=$escaped_id";
       postgres_rewrite  HEAD GET  no_rows 410;
 
-      postgres_escape $title $arg_title;
-      postgres_escape $body  $arg_body;
+      postgres_escape $body  $request_body;
+
       postgres_query
-        PUT "UPDATE maps SET title=$title, body=$body WHERE id=$escaped_id RETURNING *";
+        PUT "UPDATE maps SET datasets=$body::json->'datasets', config=$body::jsonb->'config', info=$body::jsonb->'info' WHERE id=$escaped_id RETURNING *";
       postgres_rewrite  PUT no_changes 410;
 
       postgres_query    DELETE  "DELETE FROM maps WHERE id=$escaped_id";
