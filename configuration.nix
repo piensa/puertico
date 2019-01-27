@@ -218,15 +218,28 @@ services.nginx = {
               }
             }
           })
-          ngx.print(json)
+          ngx.print(json:gsub("\\/", "/"))
           ngx.exit(ngx.OK)
         }
       }
 
     location /api {
-       default_type text/plain;
+       default_type 'application/openapi+json;version=3.0';
        content_by_lua_block {
-         ngx.say('api')
+         ngx.status = 200
+         local cjson = require "cjson"
+         local server_name = ngx.var.server_name;
+         local protocol = "https://"
+         local json = cjson.encode({
+            openapi = "3.0.1",
+            info = { },
+            servers = { },
+            paths = { },
+            components = { },
+            tags = { }
+         })
+         ngx.print(json:gsub("\\/", "/"))
+         ngx.exit(ngx.OK)
        }
     }
 
