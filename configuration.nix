@@ -39,6 +39,15 @@
     allowUnfree = true;
   };
 
+  nixpkgs.config.packageOverrides = pkgs: {
+    nur = import (builtins.fetchTarball {
+      url = "https://github.com/nix-community/NUR/archive/ecb8e0bce520bbb89c94b624b4ea82d0df8a28a4.tar.gz";
+      sha256 = "1qrv61vgyy7nyb326bqld68mrggz86x4cg753b292skvfz8y9vx8";
+    }){
+      inherit pkgs;
+    };
+  };
+
   environment.systemPackages = with pkgs; [
     git
     wget vim tmux htop git ripgrep unzip
@@ -48,6 +57,11 @@
     firefox kmail vscode vlc
     blender godot gimp inkscape
     libreoffice
+
+    nur.repos.piensa.hydra
+    nur.repos.piensa.oathkeeper
+    nur.repos.piensa.keto
+    nur.repos.piensa.tegola
   ];
 
   networking = {
@@ -149,6 +163,67 @@ security.acme.certs = {
     '';
 };
 
+ systemd.services.hydra = {
+   description = "ORY Hydra";
+   serviceConfig = {
+     Type = "forking";
+     ExecStart = "${pkgs.nur.repos.piensa.hydra}/bin/hydra serve all";
+     ExecStop = "/run/current-system/sw/bin/pkill hydra";
+     Restart = "on-failure";
+     User= "puertico";
+     EnvironmentFile = pkgs.writeText "hydra-env" ''
+       DATABASE_URL="memory"
+       OAUTH2_ISSUER_URL="https://puerti.co/"
+     '';
+   };
+   wantedBy = [ "default.target" ];
+ };
+
+ systemd.services.oathkeeper = {
+   description = "ORY Oathkeeper";
+   serviceConfig = {
+     Type = "forking";
+     ExecStart = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper serve all";
+     ExecStop = "/run/current-system/sw/bin/pkill oathkeeper";
+     Restart = "on-failure";
+     User= "puertico";
+     EnvironmentFile = pkgs.writeText "hydra-env" ''
+       DATABASE_URL="memory"
+     '';
+
+   };
+   wantedBy = [ "default.target" ];
+ };
+
+ systemd.services.keto = {
+   description = "ORY Keto";
+   serviceConfig = {
+     Type = "forking";
+     ExecStart = "${pkgs.nur.repos.piensa.keto}/bin/keto serve";
+     ExecStop = "/run/current-system/sw/bin/pkill keto";
+     Restart = "on-failure";
+     User= "puertico";
+   };
+   wantedBy = [ "default.target" ];
+ };
+
+ systemd.services.tegola = {
+   description = "Tegola - Mapbox Vector Tiles Server";
+   serviceConfig = {
+     Type = "forking";
+     ExecStart = "${pkgs.nur.repos.piensa.tegola}/bin/tegola server";
+     ExecStop = "/run/current-system/sw/bin/pkill tegola";
+     Restart = "on-failure";
+     User= "puertico";
+   };
+   wantedBy = [ "default.target" ];
+ };
+
+ systemd.services.hydra.enable = true;
+ systemd.services.oathkeeper.enable = true;
+ systemd.services.keto.enable = true;
+ systemd.services.tegola.enable = true;
+
 services.nginx = {
   enable = true;
   user = "puertico";
@@ -186,9 +261,8 @@ services.nginx = {
       location / {
         default_type application/json;
         content_by_lua_block {
-          ngx.status = 200
           local cjson = require "cjson"
-          local server_name = ngx.var.server_name;
+          local server_name = ngx.var.server_name
           local protocol = "https://"
           local json = cjson.encode({
             links = {
@@ -217,32 +291,54 @@ services.nginx = {
                 title = "Metadata about the feature collections"
               }
             }
-          })
-          ngx.print(json:gsub("\\/", "/"))
-          ngx.exit(ngx.OK)
+          }):gsub("\\/", "/")
+          ngx.say(json)
         }
       }
 
     location /api {
        default_type 'application/openapi+json;version=3.0';
        content_by_lua_block {
-         ngx.status = 200
          local cjson = require "cjson"
-         local server_name = ngx.var.server_name;
+         local server_name = ngx.var.server_name
          local protocol = "https://"
          local json = cjson.encode({
             openapi = "3.0.1",
-            info = { },
-            servers = { },
+            info = { 
+              title = "A sample API conforming to the OGC Web Feature Service standard",
+              version = "M1",
+              description = "OGC WFS 3.0 OpenAPI definition. (conformance  classes: Core, GeoJSON, HTML and OpenAPI 3.0",
+              contact = {
+                 name = "Ariel Núñez",
+                 email = "ariel@piensa.co",
+                 url = protocol .. server_name,
+              },
+              license = {
+                name = "CC-BY 4.0 License",
+                url = "https://creativecommons.org/licenses/by/4.0/"
+              }
+            },
+            servers = {
+              { url = protocol .. server_name,
+                description = "Production server"
+              }
+            },
             paths = { },
             components = { },
-            tags = { }
-         })
-         ngx.print(json:gsub("\\/", "/"))
-         ngx.exit(ngx.OK)
+            tags = { 
+              {
+                name = "Features",
+                description = "Access to data (features)."
+              },
+              {
+                name = "Capabilities",
+                description = "Essential characteristics of this API including information about the data."
+              }
+            }
+         }):gsub("\\/", "/")
+         ngx.say(json)
        }
     }
-
 
     location /conformance {
        default_type text/plain;
@@ -290,10 +386,10 @@ services.nginx = {
     }
 
 
-      location /secure {
+      location /consent {
        default_type text/plain;
        content_by_lua_block {
-         ngx.say('Secure area.')
+         ngx.say('Consent area.')
        }
 
        access_by_lua_block {
@@ -311,12 +407,42 @@ services.nginx = {
        }
       }
 
-       location /auth/ {
-         default_type text/plain;
+       location /login {
+         default_type application/json;
          content_by_lua_block {
-            ngx.say('Please log in')
+           local cjson = require "cjson"
+           local server_name = ngx.var.server_name
+           local protocol = "https://"
+
+           local args = ngx.req.get_uri_args()
+           local email = args.email 
+           local json = cjson.encode({
+               link = protocol .. server_name .. "/login" .. "/one-time-hashed-sign-in-link-sent-via-email",
+               secret = "brave platypus",
+               email = email,
+               description = "Click on the link sent to your email if it contains the words brave platypus to finish the sign in process",
+               note = "This link is being returned as a proof of concept, so you can avoid checking your email - will be removed in final release"
+           }):gsub("\\/", "/")
+           ngx.say(json)
          }
        }
+        location ~ login/(?<magic_code>\w+) {
+          default_type application/json;
+          content_by_lua_block {
+            local cjson = require "cjson"
+            local server_name = ngx.var.server_name
+            local protocol = "https://"
+            local magic_code = ngx.var.magic_code
+
+            -- Check magic_code is valid and contact hydra?
+
+            local args = ngx.req.get_uri_args()
+            local json = cjson.encode({
+              description = "This user is who she claims she is"
+            }):gsub("\\/", "/")
+            ngx.say(json)
+          }
+        } 
      }
     }
  
