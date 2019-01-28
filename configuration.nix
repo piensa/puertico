@@ -128,18 +128,11 @@ security.acme.certs = {
     webroot = "/d/challenges/";
     email = "ingenieroariel@gmail.com";
   };
-#  "hydra.puerti.co" = {
-#    webroot = "/d/challenges/hydra";
-#    email = "ingenieroariel@gmail.com";
-#  };
-#  "oathkeeper.puerti.co" = {
-#    webroot = "/d/challenges/oathkeeper";
-#    email = "ingenieroariel@gmail.com";
-#  };
-#  "keto.puerti.co" = {
-#    webroot = "/d/challenges/keto";
-#    email = "ingenieroariel@gmail.com";
-#  };
+};
+
+services.minio = {
+  enable = true;
+  dataDir = "/d/minio";
 };
 
  services.postgresql = {
@@ -178,14 +171,19 @@ security.acme.certs = {
  systemd.services.hydra = {
    description = "ORY Hydra";
    serviceConfig = {
-     Type = "forking";
+     LimitNOFILE=65536;
+     PermissionsStartOnly=true;
+     Type="simple";
      ExecStart = "${pkgs.nur.repos.piensa.hydra}/bin/hydra serve all --dangerous-force-http";
      ExecStop = "/run/current-system/sw/bin/pkill hydra";
+     ExecStartPre = "${pkgs.nur.repos.piensa.hydra}/bin/hydra migrate sql -e";
      Restart = "on-failure";
      User = "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
-       DATABASE_URL="memory"
-       OAUTH2_ISSUER_URL="http://hydra.puerti.co/"
+       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       OAUTH2_ISSUER_URL="https://puerti.co/hydra"
+       OAUTH2_CONSENT_URL="https://puerti.co/consent"
+       OAUTH2_LOGIN_URL="https://puerti.co/login"
      '';
    };
    wantedBy = [ "default.target" ];
@@ -261,55 +259,6 @@ services.nginx = {
          root /d/challenges/;
       }
     }
-#    server {
-#      listen 80;
-#      server_name ~^(?<subdomain>.+)\.puerti\.co$;
-#      return 301 https://$subdomain.puerti.co$request_uri;
-
-#      location /.well-known/acme-challenge {
-#         root /d/challenges/$subdomain;
-#      }
-#    }
-
-
-    server {
-      listen 80;
-      server_name hydra.puerti.co;
-#      ssl_certificate /var/lib/acme/hydra.puerti.co/fullchain.pem;
-#      ssl_certificate_key /var/lib/acme/hydra.puerti.co/key.pem;
-
-      location / {
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4444;
-      }
-    }
-
-    server {
-      listen 80;
-      server_name oathkeeper.puerti.co;
-#      ssl_certificate /var/lib/acme/oathkeeper.puerti.co/fullchain.pem;
-#      ssl_certificate_key /var/lib/acme/oathkeeper.puerti.co/key.pem;
-
-      location / {
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4455;
-      }
-    }
-
-    server {
-      listen 80;
-      server_name keto.puerti.co;
-#      ssl_certificate /var/lib/acme/keto.puerti.co/fullchain.pem;
-#      ssl_certificate_key /var/lib/acme/keto.puerti.co/key.pem;
-
-      location / {
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4466;
-      }
-    }
 
     server {
       listen 443 ssl;
@@ -318,6 +267,32 @@ services.nginx = {
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
  
       root "/d/puerti.co";
+
+
+      location /hydra {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4444;
+      }
+
+      location /keto {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4466;
+      }
+
+      location /oathkeeper {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4455;
+      }
+
+      location /minio {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:9000;
+      }
+
 
       location / {
         default_type application/json;
