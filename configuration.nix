@@ -125,9 +125,21 @@
 
 security.acme.certs = {
   "puerti.co" = {
-    webroot = "/d/challenges";
+    webroot = "/d/challenges/";
     email = "ingenieroariel@gmail.com";
   };
+#  "hydra.puerti.co" = {
+#    webroot = "/d/challenges/hydra";
+#    email = "ingenieroariel@gmail.com";
+#  };
+#  "oathkeeper.puerti.co" = {
+#    webroot = "/d/challenges/oathkeeper";
+#    email = "ingenieroariel@gmail.com";
+#  };
+#  "keto.puerti.co" = {
+#    webroot = "/d/challenges/keto";
+#    email = "ingenieroariel@gmail.com";
+#  };
 };
 
  services.postgresql = {
@@ -167,13 +179,13 @@ security.acme.certs = {
    description = "ORY Hydra";
    serviceConfig = {
      Type = "forking";
-     ExecStart = "${pkgs.nur.repos.piensa.hydra}/bin/hydra serve all";
+     ExecStart = "${pkgs.nur.repos.piensa.hydra}/bin/hydra serve all --dangerous-force-http";
      ExecStop = "/run/current-system/sw/bin/pkill hydra";
      Restart = "on-failure";
-     User= "puertico";
+     User = "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
        DATABASE_URL="memory"
-       OAUTH2_ISSUER_URL="https://puerti.co/"
+       OAUTH2_ISSUER_URL="http://hydra.puerti.co/"
      '';
    };
    wantedBy = [ "default.target" ];
@@ -220,9 +232,9 @@ security.acme.certs = {
  };
 
  systemd.services.hydra.enable = true;
- systemd.services.oathkeeper.enable = true;
- systemd.services.keto.enable = true;
- systemd.services.tegola.enable = true;
+ systemd.services.oathkeeper.enable = false;
+ systemd.services.keto.enable = false;
+ systemd.services.tegola.enable = false;
 
 services.nginx = {
   enable = true;
@@ -246,13 +258,62 @@ services.nginx = {
       return 301 https://$server_name$request_uri;
 
       location /.well-known/acme-challenge {
-         root /d/challenges;
+         root /d/challenges/;
+      }
+    }
+#    server {
+#      listen 80;
+#      server_name ~^(?<subdomain>.+)\.puerti\.co$;
+#      return 301 https://$subdomain.puerti.co$request_uri;
+
+#      location /.well-known/acme-challenge {
+#         root /d/challenges/$subdomain;
+#      }
+#    }
+
+
+    server {
+      listen 80;
+      server_name hydra.puerti.co;
+#      ssl_certificate /var/lib/acme/hydra.puerti.co/fullchain.pem;
+#      ssl_certificate_key /var/lib/acme/hydra.puerti.co/key.pem;
+
+      location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4444;
+      }
+    }
+
+    server {
+      listen 80;
+      server_name oathkeeper.puerti.co;
+#      ssl_certificate /var/lib/acme/oathkeeper.puerti.co/fullchain.pem;
+#      ssl_certificate_key /var/lib/acme/oathkeeper.puerti.co/key.pem;
+
+      location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4455;
+      }
+    }
+
+    server {
+      listen 80;
+      server_name keto.puerti.co;
+#      ssl_certificate /var/lib/acme/keto.puerti.co/fullchain.pem;
+#      ssl_certificate_key /var/lib/acme/keto.puerti.co/key.pem;
+
+      location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4466;
       }
     }
 
     server {
       listen 443 ssl;
-      server_name puerti.co *.puerti.co;
+      server_name puerti.co;
       ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
  
