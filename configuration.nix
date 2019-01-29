@@ -59,6 +59,8 @@
     firefox kmail vscode vlc
     blender godot gimp inkscape
     libreoffice
+    
+    minio minio-client
 
     nur.repos.piensa.hydra
     nur.repos.piensa.oathkeeper
