@@ -5,7 +5,9 @@
     [ <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
     ];
 
-  boot.initrd.availableKernelModules = [ "xhci_pci" "ahci" "usb_storage" "usbhid" "sd_mod" "sdhci_pci" ];
+  boot.initrd.availableKernelModules = [ "xhci_pci" "ahci"
+                                         "usb_storage" "usbhid"
+                                         "sd_mod" "sdhci_pci" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
@@ -142,8 +144,8 @@ services.minio = {
     extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql100; }) ];
 
     authentication = pkgs.lib.mkOverride 10 ''
-      local all all trust
-      host all all localhost trust
+      local all all ident
+      host puertico puertico localhost trust
     '';
     initialScript = pkgs.writeText "backend-initScript" ''
       CREATE ROLE puertico;
@@ -420,7 +422,6 @@ services.nginx = {
       postgres_rewrite  DELETE  no_changes 410;
       postgres_rewrite  DELETE  changes 204;
     }
-
 
       location /consent {
        default_type text/plain;
