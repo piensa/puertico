@@ -11,6 +11,8 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
+  boot.kernel.sysctl = { "net.ipv4.ip_forward" = true; };
+
   fileSystems."/" =
     { device = "/dev/disk/by-label/nixos";
       fsType = "btrfs";
@@ -60,8 +62,6 @@
     blender godot gimp inkscape
     libreoffice
 
-    wpa_supplicant
-
     minio minio-client
 
     nur.repos.piensa.hydra
@@ -83,17 +83,62 @@
     )
   ];
 
+  services.dhcpd4 = {
+    enable = true; 
+    interfaces = [ "wlan0" ];
+    extraConfig = ''
+       subnet 192.168.3.0 netmask 255.255.255.0 {
+         option subnet-mask 255.255.255.0;
+         option broadcast-address 192.168.3.255;
+         option domain-name-servers 1.1.1.1, 8.8.8.8;
+         option routers 192.168.3.1;
+         next-server 192.168.3.1;
+         range 192.168.3.150 192.168.3.190;
+         default-lease-time 21600;
+         max-lease-time 43200;
+         }
+    '';
+  };
   networking = {
      hostName = "nuc";
      networkmanager.enable = false;
      usePredictableInterfaceNames = false;
-     dhcpcd.enable = false;
      defaultGateway = "200.116.231.17";
      interfaces."eth0" = {
        ipv4.addresses = [{
         address = "200.116.231.18";
         prefixLength = 29;
       }];
+    };
+     interfaces."wlan0" = {
+       ipv4.addresses = [{
+        address = "192.168.3.1";
+        prefixLength = 26;
+      }];
+
+    };
+     nat = {
+        enable = true;
+        externalInterface = "eth0";
+        internalIPs = [ "192.168.3.0/24" ];
+        internalInterfaces = [ "wlan0" ];
+     };
+     wireless = {
+       enable = true;
+       userControlled.enable = false;
+       networks = { "dummy" = { psk = "soextraconfiggetspickedup"; }; };
+       extraConfig = ''
+         network={
+          ssid="puerti.co"
+          psk="opendata"
+          mode=2
+          frequency=2437
+          proto=RSN
+          key_mgmt=WPA-PSK
+          pairwise=CCMP
+          auth_alg=OPEN
+         }
+         ''; 
      };
      nameservers = [ "1.1.1.1" "8.8.8.8"];
      firewall = {
