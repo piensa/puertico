@@ -52,25 +52,49 @@
 
   environment.systemPackages = with pkgs; [
     git
-    wget vim tmux htop git ripgrep unzip
+    wget tmux htop git ripgrep unzip
     tcpdump telnet openssh
     gnumake gcc libcxx libcxxabi llvm ninja clang
     python3 nodejs nodePackages.node2nix go
     firefox kmail vscode vlc
     blender godot gimp inkscape
     libreoffice
-    
+
+    wpa_supplicant
+
     minio minio-client
 
     nur.repos.piensa.hydra
     nur.repos.piensa.oathkeeper
     nur.repos.piensa.keto
     nur.repos.piensa.tegola
+
+    ( with import <nixpkgs> {};
+      vim_configurable.customize {
+        name = "vim";
+        vimrcConfig.customRC = ''
+          syntax enable
+          set backspace=indent,eol,start
+          if has("autocmd")
+             au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
+          endif
+        '';
+      }
+    )
   ];
 
   networking = {
      hostName = "nuc";
-     networkmanager.enable = true;
+     networkmanager.enable = false;
+     usePredictableInterfaceNames = false;
+     dhcpcd.enable = false;
+     defaultGateway = "200.116.231.17";
+     interfaces."eth0" = {
+       ipv4.addresses = [{
+        address = "200.116.231.18";
+        prefixLength = 29;
+      }];
+     };
      nameservers = [ "1.1.1.1" "8.8.8.8"];
      firewall = {
         allowedTCPPortRanges = [
@@ -169,6 +193,9 @@ services.minio = {
           '{ "bbox": [] }'::jsonb,
           '{ "contact": { "phone": "555-5555" } }'::jsonb
       ); 
+
+      GRANT ALL privileges ON TABLE maps TO puertico;
+
     '';
 };
 
@@ -188,36 +215,94 @@ services.minio = {
        OAUTH2_ISSUER_URL="https://puerti.co/hydra"
        OAUTH2_CONSENT_URL="https://puerti.co/consent"
        OAUTH2_LOGIN_URL="https://puerti.co/login"
+       OAUTH2_ISSUER_URL=http://localhost:4444
+       SYSTEM_SECRET="unsafe-way-to-set-the-system-secret"
      '';
    };
    wantedBy = [ "default.target" ];
  };
 
- systemd.services.oathkeeper = {
-   description = "ORY Oathkeeper";
+ systemd.services.oryapi = {
+   description = "ORY Oathkeeper API";
    serviceConfig = {
-     Type = "forking";
-     ExecStart = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper serve all";
+     Type = "simple";
+     ExecStart = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper serve api";
      ExecStop = "/run/current-system/sw/bin/pkill oathkeeper";
+     ExecStartPre = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
-       DATABASE_URL="memory"
+       PORT=4456
+       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       ISSUER_URL=http://localhost:4455/
+       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       CREDENTIALS_ISSUER_ID_TOKEN_HS256_SECRET="12345678901234567890123456789012"
+       AUTHORIZER_KETO_WARDEN_KETO_URL=http://localhost:4466
+       CREDENTIALS_ISSUER_ID_TOKEN_ALGORITHM=ory-hydra
+       CREDENTIALS_ISSUER_ID_TOKEN_HYDRA_JWK_SET_ID=resources:hydra:jwk:oathkeeper
+       CREDENTIALS_ISSUER_ID_TOKEN_HYDRA_ADMIN_URL=http://localhost:4445
+       CREDENTIALS_ISSUER_ID_TOKEN_LIFESPAN=1h
+       CREDENTIALS_ISSUER_ID_TOKEN_ISSUER=http://localhost:4456
+       CREDENTIALS_ISSUER_ID_TOKEN_JWK_REFRESH_INTERVAL=30m
+       AUTHENTICATOR_OAUTH2_INTROSPECTION_URL=http://localhost:4445/oauth2/introspect
+       AUTHENTICATOR_OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL=http://localhost:4444/oauth2/token
+     '';
+   };
+   wantedBy = [ "default.target" ];
+ };
+
+ systemd.services.oryproxy = {
+   description = "ORY Oathkeeper Proxy";
+   serviceConfig = {
+     Type = "simple";
+     ExecStart = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper serve proxy";
+     ExecStop = "/run/current-system/sw/bin/pkill oathkeeper";
+     ExecStartPre = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper migrate sql -e";
+     Restart = "on-failure";
+     User= "puertico";
+     EnvironmentFile = pkgs.writeText "ory-proxy-env" ''
+       PORT=4455
+       OATHKEEPER_API_URL=http://localhost:4456/
+       ISSUER_URL=http://localhost:4455/
+       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       CREDENTIALS_ISSUER_ID_TOKEN_HS256_SECRET="12345678901234567890123456789012"
+       AUTHORIZER_KETO_WARDEN_KETO_URL=http://localhost:4466
+       CREDENTIALS_ISSUER_ID_TOKEN_ALGORITHM=ory-hydra
+       CREDENTIALS_ISSUER_ID_TOKEN_HYDRA_JWK_SET_ID=resources:hydra:jwk:oathkeeper
+       CREDENTIALS_ISSUER_ID_TOKEN_HYDRA_ADMIN_URL=http://localhost:4445
+       CREDENTIALS_ISSUER_ID_TOKEN_LIFESPAN=1h
+       CREDENTIALS_ISSUER_ID_TOKEN_ISSUER=http://localhost:4456
+       CREDENTIALS_ISSUER_ID_TOKEN_JWK_REFRESH_INTERVAL=30m
+       AUTHENTICATOR_OAUTH2_INTROSPECTION_URL=http://localhost:4445/oauth2/introspect
+       AUTHENTICATOR_OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL=http://localhost:4444/oauth2/token
      '';
 
    };
-   wantedBy = [ "default.target" ];
+
+    after = [ "oryapi.service" "keto.service" "hydra.service"];
+    requires = [ "oryapi.service" "keto.service" "hydra.service" ]; 
+    wantedBy = [ "default.target" ];
  };
 
  systemd.services.keto = {
    description = "ORY Keto";
    serviceConfig = {
-     Type = "forking";
+     Type = "simple";
      ExecStart = "${pkgs.nur.repos.piensa.keto}/bin/keto serve";
      ExecStop = "/run/current-system/sw/bin/pkill keto";
+     ExecStartPre = "${pkgs.nur.repos.piensa.keto}/bin/keto migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
+     EnvironmentFile = pkgs.writeText "hydra-env" ''
+       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       ISSUER_URL=http://localhost:4455/
+       AUTHENTICATOR_OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL=http://localhost:4444/oauth2/token
+       AUTHENTICATOR_OAUTH2_INTROSPECTION_URL=http://localhost:4445/oauth2/introspect
+     '';
    };
+   after = [ "hydra.service"];
+   requires = [ "hydra.service" ]; 
+  
    wantedBy = [ "default.target" ];
  };
 
@@ -234,8 +319,9 @@ services.minio = {
  };
 
  systemd.services.hydra.enable = true;
- systemd.services.oathkeeper.enable = false;
- systemd.services.keto.enable = false;
+ systemd.services.oryproxy.enable = true;
+ systemd.services.oryapi.enable = true;
+ systemd.services.keto.enable = true;
  systemd.services.tegola.enable = false;
 
 services.nginx = {
@@ -285,7 +371,13 @@ services.nginx = {
         proxy_pass http://localhost:4466;
       }
 
-      location /oathkeeper {
+      location /oryapi {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://localhost:4456;
+      }
+
+      location /oryproxy {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_pass http://localhost:4455;
