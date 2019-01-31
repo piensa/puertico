@@ -96,6 +96,7 @@
          range 192.168.3.150 192.168.3.190;
          default-lease-time 21600;
          max-lease-time 43200;
+         option ip-forwarding off;
          }
     '';
   };
@@ -130,7 +131,7 @@
        extraConfig = ''
          network={
           ssid="puerti.co"
-          psk="opendata"
+          psk="yeahrightilltellyou"
           mode=2
           frequency=2437
           proto=RSN
@@ -142,6 +143,7 @@
      };
      nameservers = [ "1.1.1.1" "8.8.8.8"];
      firewall = {
+        enable = true;
         allowedTCPPortRanges = [
            { from = 80; to = 80; }
            { from = 443; to = 444; }
