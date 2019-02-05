@@ -174,7 +174,7 @@
      nat = {
         enable = true;
         externalInterface = "eth0";
-        internalIPs = [ "192.168.3.0/24" ];
+        internalIPs = [ "192.168.3.0/26" ];
         internalInterfaces = [ "wlan0" ];
      };
      wireless = {
@@ -200,7 +200,6 @@
         allowedTCPPortRanges = [
            { from = 80; to = 80; }
            { from = 443; to = 444; }
-           { from = 9000; to = 9000; }
          ];
         allowedUDPPortRanges = [
            { from = 60000; to = 61000; }
@@ -262,6 +261,7 @@ security.acme.certs = {
 services.minio = {
   enable = true;
   dataDir = "/d/minio";
+  browser = false;
 };
 
  services.postgresql = {
@@ -491,15 +491,16 @@ services.nginx = {
       }
 
       location / {
+        try_files $uri $uri/index.html @minio;
+      }
+
+      location @minio {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_pass http://localhost:9000;
       }
 
-      
-
-
-      location /wfs {
+      location /wfs3 {
         default_type application/json;
         content_by_lua_block {
           local cjson = require "cjson"
