@@ -11,7 +11,10 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  boot.kernel.sysctl = { "net.ipv4.ip_forward" = true; };
+  boot.kernel.sysctl = { 
+    "net.ipv4.conf.all.forwarding" = 1;
+    "net.ipv4.conf.default.forwarding" = 1;
+  };
 
   fileSystems."/" =
     { device = "/dev/disk/by-label/nixos";
@@ -43,11 +46,59 @@
     allowUnfree = true;
   };
 
+  nixpkgs.overlays = [
+    (self: super:
+    let
+      inherit (self.pkgs) fetchgit python37Packages;
+      inherit (python37Packages) numpy python;
+    in {
+      blender = (super.blender.override {
+      pythonPackages = python37Packages;
+    }).overrideAttrs (oldAttrs: rec {
+      name = "blender-2.80.beta-${version}";
+      version = "38984b10ff7b8c61c5e1b85a971c77841de5f4e7";
+
+      src = fetchgit {
+        url = "https://git.blender.org/blender.git";
+        rev = version;
+        sha256 = "1i1i7bvr293g96hq5vazk2g25kz4hv4qbqhffp84lscb21d395bp";
+      };
+
+      cmakeFlags = oldAttrs.cmakeFlags ++ [
+        "-DPYTHON_NUMPY_PATH=${numpy}/${python.sitePackages}"
+        "-DWITH_PYTHON_INSTALL=ON"
+        "-DWITH_PYTHON_INSTALL_NUMPY=ON"
+      ];
+     });
+    }
+    ) (self: super:
+    let
+      inherit (self.pkgs) fetchgit;
+      inherit (self.pkgs.nur.repos.piensa) keto;
+    in {
+      keto = (super.nur.repos.piensa.keto.override { }).overrideAttrs (oldAttrs: rec {
+      name = "keto-${version}";
+      version = "7798442553cfe7989a23d2c389c8c63a24013543";
+
+      src = fetchgit {
+        rev = version;
+        url = "https://github.com/ory/keto";
+        sha256 = "0ybdm0fp63ygvs7cnky4dqgs5rmw7bd1pqkljwb8c2k14ps8xxyf";
+      };
+
+      patches = [ ./0001-keto-changes.patch ];
+     });
+    }
+    )
+
+  ];
+
   nixpkgs.config.packageOverrides = pkgs: {
     nur = import (builtins.fetchTarball {
-      url = "https://github.com/nix-community/NUR/archive/ecb8e0bce520bbb89c94b624b4ea82d0df8a28a4.tar.gz";
-      sha256 = "1qrv61vgyy7nyb326bqld68mrggz86x4cg753b292skvfz8y9vx8";
-    }){
+      url = "https://github.com/nix-community/NUR/archive/4ffbef2507ce4977c949567b3bf0790ff120ac82.tar.gz";
+      sha256 = "0bxwmb84jj37x57ckyhvgrwcwfkqa9vm7v9l6sv620zwwbaw9rwj";
+    }
+   ){
       inherit pkgs;
     };
   };
@@ -59,15 +110,15 @@
     gnumake gcc libcxx libcxxabi llvm ninja clang
     python3 nodejs nodePackages.node2nix go
     firefox kmail vscode vlc
-    blender godot gimp inkscape
+    blender godot gimp inkscape krita audacity
     libreoffice
 
     minio minio-client
 
     nur.repos.piensa.hydra
     nur.repos.piensa.oathkeeper
-    nur.repos.piensa.keto
     nur.repos.piensa.tegola
+    keto
 
     ( with import <nixpkgs> {};
       vim_configurable.customize {
@@ -80,7 +131,9 @@
           endif
         '';
       }
-    )
+      )
+
+    
   ];
 
   services.dhcpd4 = {
@@ -335,13 +388,14 @@ services.minio = {
    description = "ORY Keto";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.nur.repos.piensa.keto}/bin/keto serve";
+     ExecStart = "${pkgs.keto}/bin/keto serve";
      ExecStop = "/run/current-system/sw/bin/pkill keto";
-     ExecStartPre = "${pkgs.nur.repos.piensa.keto}/bin/keto migrate sql -e";
+     ExecStartPre = "${pkgs.keto}/bin/keto migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
        DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       COMPILER_DIR="/d/keto_compiler"
        ISSUER_URL=http://localhost:4455/
        AUTHENTICATOR_OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL=http://localhost:4444/oauth2/token
        AUTHENTICATOR_OAUTH2_INTROSPECTION_URL=http://localhost:4445/oauth2/introspect
