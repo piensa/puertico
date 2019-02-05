@@ -200,6 +200,7 @@
         allowedTCPPortRanges = [
            { from = 80; to = 80; }
            { from = 443; to = 444; }
+           { from = 9000; to = 9000; }
          ];
         allowedUDPPortRanges = [
            { from = 60000; to = 61000; }
@@ -452,11 +453,16 @@ services.nginx = {
     }
 
     server {
-      listen 443 ssl;
+      listen 443 ssl http2;
       server_name puerti.co;
       ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
- 
+
+      # for minio
+      ignore_invalid_headers off;
+      client_max_body_size 1000m;
+      proxy_buffering off;
+
       root "/d/puerti.co";
 
 
@@ -484,14 +490,16 @@ services.nginx = {
         proxy_pass http://localhost:4455;
       }
 
-      location /minio {
+      location / {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_pass http://localhost:9000;
       }
 
+      
 
-      location / {
+
+      location /wfs {
         default_type application/json;
         content_by_lua_block {
           local cjson = require "cjson"
