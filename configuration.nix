@@ -52,7 +52,7 @@
   };
 
   environment.systemPackages = with pkgs; [
-    git vim
+    git vim mutt
     wget tmux htop git ripgrep unzip
     tcpdump telnet openssh
 
@@ -75,6 +75,7 @@
         allowedTCPPortRanges = [
            { from = 80; to = 80; }
            { from = 443; to = 444; }
+           { from = 9000; to = 9000; }
          ];
         allowedUDPPortRanges = [
            { from = 60000; to = 61000; }
@@ -125,7 +126,7 @@ security.acme.certs = {
 services.minio = {
   enable = true;
   dataDir = "/d/minio";
-  browser = false;
+  browser = true;
 };
 
 services.postgresql = {
@@ -366,7 +367,7 @@ services.nginx = {
       location @minio {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:9000;
+        proxy_pass https://localhost:9000;
       }
 
       location /wfs3 {
