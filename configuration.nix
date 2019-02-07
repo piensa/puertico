@@ -156,6 +156,9 @@
   networking = {
      hostName = "nuc";
      nameservers = [ "1.1.1.1" "8.8.8.8"];
+     extraHosts = ''
+     192.168.192.2 nuc puerti.co
+     '';
      firewall = {
         enable = true;
         allowedTCPPortRanges = [
@@ -418,6 +421,10 @@ services.nginx = {
       server_name puerti.co;
       ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
+
+      ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+      ssl_prefer_server_ciphers on;
+      ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
 
       # for minio
       ignore_invalid_headers off;
