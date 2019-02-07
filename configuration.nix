@@ -155,45 +155,6 @@
   };
   networking = {
      hostName = "nuc";
-     networkmanager.enable = false;
-     usePredictableInterfaceNames = false;
-     defaultGateway = "200.116.231.17";
-     interfaces."eth0" = {
-       ipv4.addresses = [{
-        address = "200.116.231.18";
-        prefixLength = 29;
-      }];
-    };
-     interfaces."wlan0" = {
-       ipv4.addresses = [{
-        address = "192.168.3.1";
-        prefixLength = 26;
-      }];
-
-    };
-     nat = {
-        enable = true;
-        externalInterface = "eth0";
-        internalIPs = [ "192.168.3.0/26" ];
-        internalInterfaces = [ "wlan0" ];
-     };
-     wireless = {
-       enable = true;
-       userControlled.enable = false;
-       networks = { "dummy" = { psk = "soextraconfiggetspickedup"; }; };
-       extraConfig = ''
-         network={
-          ssid="puerti.co"
-          psk="yeahrightilltellyou"
-          mode=2
-          frequency=2437
-          proto=RSN
-          key_mgmt=WPA-PSK
-          pairwise=CCMP
-          auth_alg=OPEN
-         }
-         ''; 
-     };
      nameservers = [ "1.1.1.1" "8.8.8.8"];
      firewall = {
         enable = true;
@@ -264,7 +225,7 @@ services.minio = {
   browser = false;
 };
 
- services.postgresql = {
+services.postgresql = {
     enable = true;
     package = pkgs.postgresql100;
     enableTCPIP = true;
@@ -491,6 +452,7 @@ services.nginx = {
       }
 
       location / {
+
         try_files $uri $uri/index.html @minio;
       }
 
@@ -609,7 +571,35 @@ services.nginx = {
       postgres_rewrite  POST changes 201;
     }
 
-    location ~ /maps/(?<id>\d+) {
+    location ~ /maps/(?<id>\d+).json {
+
+
+        if ($request_method = 'OPTIONS') {
+          add_header 'Access-Control-Allow-Origin' '$http_origin';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+          add_header 'Access-Control-Max-Age' 1728000;
+          add_header 'Content-Type' 'text/plain; charset=utf-8';
+          add_header 'Content-Length' 0;
+          return 204;
+        }
+
+        if ($request_method = 'POST') {
+          add_header 'Access-Control-Allow-Origin' '$http_origin';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+          add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        }
+
+        if ($request_method = 'GET') {
+          add_header 'Access-Control-Allow-Origin' '$http_origin';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+          add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        }
+
+
+
       postgres_pass database;
       rds_json  on;
       postgres_escape $escaped_id $id;
