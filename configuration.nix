@@ -90,11 +90,6 @@
     defaultLocale = "en_US.UTF-8";
   };
 
-
-  sound.enable = true;
-  hardware.pulseaudio.enable = true;
-  hardware.bluetooth.enable = true;
-
   security.pam.enableOTPW = true;
 
   services.openssh = {
