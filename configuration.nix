@@ -11,11 +11,6 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  boot.kernel.sysctl = { 
-    "net.ipv4.conf.all.forwarding" = 1;
-    "net.ipv4.conf.default.forwarding" = 1;
-  };
-
   fileSystems."/" =
     { device = "/dev/disk/by-label/nixos";
       fsType = "btrfs";
@@ -46,57 +41,10 @@
     allowUnfree = true;
   };
 
-  nixpkgs.overlays = [
-    (self: super:
-    let
-      inherit (self.pkgs) fetchgit python37Packages;
-      inherit (python37Packages) numpy python;
-    in {
-      blender = (super.blender.override {
-      pythonPackages = python37Packages;
-    }).overrideAttrs (oldAttrs: rec {
-      name = "blender-2.80.beta-${version}";
-      version = "38984b10ff7b8c61c5e1b85a971c77841de5f4e7";
-
-      src = fetchgit {
-        url = "https://git.blender.org/blender.git";
-        rev = version;
-        sha256 = "1i1i7bvr293g96hq5vazk2g25kz4hv4qbqhffp84lscb21d395bp";
-      };
-
-      cmakeFlags = oldAttrs.cmakeFlags ++ [
-        "-DPYTHON_NUMPY_PATH=${numpy}/${python.sitePackages}"
-        "-DWITH_PYTHON_INSTALL=ON"
-        "-DWITH_PYTHON_INSTALL_NUMPY=ON"
-      ];
-     });
-    }
-    ) (self: super:
-    let
-      inherit (self.pkgs) fetchgit;
-      inherit (self.pkgs.nur.repos.piensa) keto;
-    in {
-      keto = (super.nur.repos.piensa.keto.override { }).overrideAttrs (oldAttrs: rec {
-      name = "keto-${version}";
-      version = "7798442553cfe7989a23d2c389c8c63a24013543";
-
-      src = fetchgit {
-        rev = version;
-        url = "https://github.com/ory/keto";
-        sha256 = "0ybdm0fp63ygvs7cnky4dqgs5rmw7bd1pqkljwb8c2k14ps8xxyf";
-      };
-
-      patches = [ ./0001-keto-changes.patch ];
-     });
-    }
-    )
-
-  ];
-
   nixpkgs.config.packageOverrides = pkgs: {
     nur = import (builtins.fetchTarball {
-      url = "https://github.com/nix-community/NUR/archive/4ffbef2507ce4977c949567b3bf0790ff120ac82.tar.gz";
-      sha256 = "0bxwmb84jj37x57ckyhvgrwcwfkqa9vm7v9l6sv620zwwbaw9rwj";
+      url = "https://github.com/nix-community/NUR/archive/3aed4fb84faf3d8701eccbdae8c7a67ee47190bf.tar.gz";
+      sha256 = "1vyk3c6dy45ippfzrg9x9bwraapanjh3ssp0sy1dfm6yfg17dnaa";
     }
    ){
       inherit pkgs;
@@ -104,55 +52,18 @@
   };
 
   environment.systemPackages = with pkgs; [
-    git
+    git vim
     wget tmux htop git ripgrep unzip
     tcpdump telnet openssh
-    gnumake gcc libcxx libcxxabi llvm ninja clang
-    python3 nodejs nodePackages.node2nix go
-    firefox kmail vscode vlc
-    blender godot gimp inkscape krita audacity
-    libreoffice
 
     minio minio-client
 
     nur.repos.piensa.hydra
     nur.repos.piensa.oathkeeper
     nur.repos.piensa.tegola
-    keto
-
-    ( with import <nixpkgs> {};
-      vim_configurable.customize {
-        name = "vim";
-        vimrcConfig.customRC = ''
-          syntax enable
-          set backspace=indent,eol,start
-          if has("autocmd")
-             au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
-          endif
-        '';
-      }
-      )
-
-    
+    nur.repos.piensa.keto
   ];
 
-  services.dhcpd4 = {
-    enable = true; 
-    interfaces = [ "wlan0" ];
-    extraConfig = ''
-       subnet 192.168.3.0 netmask 255.255.255.0 {
-         option subnet-mask 255.255.255.0;
-         option broadcast-address 192.168.3.255;
-         option domain-name-servers 1.1.1.1, 8.8.8.8;
-         option routers 192.168.3.1;
-         next-server 192.168.3.1;
-         range 192.168.3.150 192.168.3.190;
-         default-lease-time 21600;
-         max-lease-time 43200;
-         option ip-forwarding off;
-         }
-    '';
-  };
   networking = {
      hostName = "nuc";
      nameservers = [ "1.1.1.1" "8.8.8.8"];
@@ -183,11 +94,6 @@
   sound.enable = true;
   hardware.pulseaudio.enable = true;
   hardware.bluetooth.enable = true;
-  services.xserver.enable = true;
-  services.xserver.displayManager.sddm.enable = true;
-  services.xserver.displayManager.sddm.autoLogin.enable = true;
-  services.xserver.displayManager.sddm.autoLogin.user = "x";
-  services.xserver.desktopManager.plasma5.enable = true;
 
   security.pam.enableOTPW = true;
 
@@ -201,8 +107,6 @@
 
   programs.mosh.enable = true;
 
-  virtualisation.libvirtd.enable = true;
-
   users.users.x = {
     isNormalUser = true;
     home = "/x";
@@ -210,6 +114,7 @@
     openssh.authorizedKeys.keys = [ "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2SGK2vk4KGjkqUcDEdBYwHLj9utMTTShyPYAWBQx8jL0ezUoHqPl7ChJqLuI2ZWMVTW2QnGHl2oZjJRK6ngF0i9hhpjjONEHOdK9YHHaXeUXgad0mAT1R+365jIR1PYOvx9kC7pk8V1Iw3EHmnRRlAHtH19sAfGiyUopZ/N2gjVE0QMhotlKjwDlG9mQR/iFJq604R/nvAvTNXgHuuVou25t1kJkGNxAbiy3jOjKQHlR4NTTB2ttAtodJDU45+FNIWOiZYLbolYdAt9VLIYngDv9aSbxUCsF2ObHZ+Ovqmx0+BK1EKkZ01SYgwIQp3Nfk09xx03y28oFlvG+O6GX3 x@xs-MacBook.local" ];
 
   };
+
   users.users.puertico = {
     home = "/d";
     isNormalUser = false;
@@ -353,9 +258,9 @@ services.postgresql = {
    description = "ORY Keto";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.keto}/bin/keto serve";
+     ExecStart = "${pkgs.nur.repos.piensa.keto}/bin/keto serve";
      ExecStop = "/run/current-system/sw/bin/pkill keto";
-     ExecStartPre = "${pkgs.keto}/bin/keto migrate sql -e";
+     ExecStartPre = "${pkgs.nur.repos.piensa.keto}/bin/keto migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
@@ -422,9 +327,9 @@ services.nginx = {
       ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
 
-      ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+      ssl_protocols TLSv1.2 TLSv1.3;
       ssl_prefer_server_ciphers on;
-      ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
+      ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+aRSA+SHA384 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
 
       # for minio
       ignore_invalid_headers off;
