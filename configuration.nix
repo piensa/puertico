@@ -3,6 +3,7 @@
 {
   imports =
     [ <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
+      ./ui.nix      
     ];
 
   boot.initrd.availableKernelModules = [ "xhci_pci" "ahci"
@@ -10,6 +11,11 @@
                                          "sd_mod" "sdhci_pci" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
+  fileSystems."/tmp" = {
+    fsType = "tmpfs";
+    device = "tmpfs";
+    options = [ "nosuid" "nodev" "relatime" "size=5G" ];
+  };
 
   fileSystems."/" =
     { device = "/dev/disk/by-label/nixos";
@@ -43,8 +49,8 @@
 
   nixpkgs.config.packageOverrides = pkgs: {
     nur = import (builtins.fetchTarball {
-      url = "https://github.com/nix-community/NUR/archive/3aed4fb84faf3d8701eccbdae8c7a67ee47190bf.tar.gz";
-      sha256 = "1vyk3c6dy45ippfzrg9x9bwraapanjh3ssp0sy1dfm6yfg17dnaa";
+      url = "https://github.com/nix-community/NUR/archive/11937cf90187b7cb1eb43b02c8fc3a45cb16fd8b.tar.gz";
+      sha256 = "0q485pc2d7m1jl72rd9b5jliq910q03sghg2vwxx5xg3wb8i21sc";
     }
    ){
       inherit pkgs;
@@ -58,10 +64,19 @@
 
     minio minio-client
 
+    pgbouncer
+
     nur.repos.piensa.hydra
     nur.repos.piensa.oathkeeper
     nur.repos.piensa.tegola
     nur.repos.piensa.keto
+   # nur.repos.piensa.imposm
+    nur.repos.piensa.kepler
+    nur.repos.piensa.colombia
+
+    firefox inkscape gimp
+#nur.repos.piensa.blender
+
   ];
 
   networking = {
@@ -136,8 +151,8 @@ services.postgresql = {
     extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql100; }) ];
 
     authentication = pkgs.lib.mkOverride 10 ''
-      local all all ident
-      host puertico puertico localhost trust
+      local all all trust
+      host all all localhost trust
     '';
     initialScript = pkgs.writeText "backend-initScript" ''
       CREATE ROLE puertico;
@@ -276,8 +291,8 @@ services.postgresql = {
  systemd.services.tegola = {
    description = "Tegola - Mapbox Vector Tiles Server";
    serviceConfig = {
-     Type = "forking";
-     ExecStart = "${pkgs.nur.repos.piensa.tegola}/bin/tegola server";
+     Type = "simple";
+     ExecStart = "${pkgs.nur.repos.piensa.tegola}/bin/tegola server --config=/d/tegola/tegola.toml";
      ExecStop = "/run/current-system/sw/bin/pkill tegola";
      Restart = "on-failure";
      User= "puertico";
@@ -289,7 +304,8 @@ services.postgresql = {
  systemd.services.oryproxy.enable = true;
  systemd.services.oryapi.enable = true;
  systemd.services.keto.enable = true;
- systemd.services.tegola.enable = false;
+ systemd.services.tegola.enable = true;
+
 
 services.nginx = {
   enable = true;
@@ -326,6 +342,7 @@ services.nginx = {
       ssl_protocols TLSv1.2 TLSv1.3;
       ssl_prefer_server_ciphers on;
       ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+aRSA+SHA384 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
+      ssl_session_cache shared:ssl_session_cache:10m;
 
       # for minio
       ignore_invalid_headers off;
@@ -334,43 +351,108 @@ services.nginx = {
 
       root "/d/puerti.co";
 
+      location /tegola {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_redirect     off;
+
+        proxy_pass http://localhost:9090/;
+      }
+
+      location /capabilities {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_redirect     off;
+
+	proxy_pass http://localhost:9090/capabilities;
+      }
+       location /maps {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_redirect     off;
+
+	proxy_pass http://localhost:9090/maps;
+      }
+
 
       location /hydra {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4444;
+        proxy_pass http://localhost:4444/;
       }
 
       location /keto {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4466;
+        proxy_pass http://localhost:4466/;
       }
 
       location /oryapi {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4456;
+        proxy_pass http://localhost:4456/;
       }
 
       location /oryproxy {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4455;
+        proxy_pass http://localhost:4455/;
+      }
+
+      location /minio {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass https://localhost:9000/;
       }
 
       location / {
+       # Do not serve anything unless it is http2
+       if ($server_protocol = HTTP/1.0) {
+         return 444;
+       }
 
-        try_files $uri $uri/index.html @minio;
+       if ($server_protocol = HTTP/1.1) {
+          return 444;
+       } 
+
+       # index index.html;
+
+        if ($request_method = 'OPTIONS') {
+          add_header 'Access-Control-Allow-Origin' '$http_origin';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+          add_header 'Access-Control-Max-Age' 1728000;
+          add_header 'Content-Type' 'text/plain; charset=utf-8';
+          add_header 'Content-Length' 0;
+          return 204;
+        }
+
+        if ($request_method = 'POST') {
+          add_header 'Access-Control-Allow-Origin' '$http_origin';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+          add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        }
+
+        if ($request_method = 'GET') {
+          add_header 'Access-Control-Allow-Origin' '$http_origin';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+          add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+        }
+
+
+
       }
 
-      location @minio {
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass https://localhost:9000;
+      location /kepler {
+        index index.html;
       }
 
-      location /wfs3 {
+      location /wfs {
         default_type application/json;
         content_by_lua_block {
           local cjson = require "cjson"
@@ -466,7 +548,7 @@ services.nginx = {
        }
     }
 
-    location /maps {
+    location /keplermaps {
       client_max_body_size 500M;
       postgres_pass database;
       rds_json on;
@@ -479,7 +561,7 @@ services.nginx = {
       postgres_rewrite  POST changes 201;
     }
 
-    location ~ /maps/(?<id>\d+).json {
+    location ~ /keplermaps/(?<id>\d+).json {
 
 
         if ($request_method = 'OPTIONS') {
