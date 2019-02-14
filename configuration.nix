@@ -1,5 +1,9 @@
 { config, lib, pkgs, ... }:
 
+let
+   piensa = pkgs.callPackage ./piensa/default.nix{};
+in
+
 {
   imports =
     [ <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
@@ -54,28 +58,37 @@
     }
    ){
       inherit pkgs;
-    };
+  };
+
+  nginx = pkgs.nginx.override {
+    modules = [
+      pkgs.nginxModules.lua
+      pkgs.nginxModules.dav
+      pkgs.nginxModules.moreheaders
+      pkgs.nginxModules.brotli
+    ];
+  };
+
   };
 
   environment.systemPackages = with pkgs; [
-    git vim mutt
+    git vim mutt spectacle
     wget tmux htop git ripgrep unzip
     tcpdump telnet openssh
 
     minio minio-client
 
-    pgbouncer
+    libxml2 jansson boost jemalloc
+    nghttp2
 
-    nur.repos.piensa.hydra
-    nur.repos.piensa.oathkeeper
-    nur.repos.piensa.tegola
-    nur.repos.piensa.keto
-   # nur.repos.piensa.imposm
-    nur.repos.piensa.kepler
-    nur.repos.piensa.colombia
+    piensa.imposm
+    piensa.kepler
+    piensa.fresco
+    piensa.colombia
+    piensa.jamaica
 
     firefox inkscape gimp
-#nur.repos.piensa.blender
+    #nur.repos.piensa.blender
 
   ];
 
@@ -136,6 +149,10 @@ security.acme.certs = {
     webroot = "/d/challenges/";
     email = "ingenieroariel@gmail.com";
   };
+ "fresco.puerti.co" = {
+    webroot = "/d/challenges/";
+    email = "ingenieroariel@gmail.com";
+  };
 };
 
 services.minio = {
@@ -192,7 +209,7 @@ services.postgresql = {
      Restart = "on-failure";
      User = "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
-       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       DATABASE_URL="postgres://puertico:puertico@localhost:5432/puertico?sslmode=disable"
        OAUTH2_ISSUER_URL="https://puerti.co/hydra"
        OAUTH2_CONSENT_URL="https://puerti.co/consent"
        OAUTH2_LOGIN_URL="https://puerti.co/login"
@@ -214,9 +231,9 @@ services.postgresql = {
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
        PORT=4456
-       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       DATABASE_URL="postgres://puertico:puertico@localhost:5432/puertico?sslmode=disable"
        ISSUER_URL=http://localhost:4455/
-       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       DATABASE_URL="postgres://puertico:puertico@localhost:5432/puertico?sslmode=disable"
        CREDENTIALS_ISSUER_ID_TOKEN_HS256_SECRET="12345678901234567890123456789012"
        AUTHORIZER_KETO_WARDEN_KETO_URL=http://localhost:4466
        CREDENTIALS_ISSUER_ID_TOKEN_ALGORITHM=ory-hydra
@@ -245,7 +262,7 @@ services.postgresql = {
        PORT=4455
        OATHKEEPER_API_URL=http://localhost:4456/
        ISSUER_URL=http://localhost:4455/
-       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       DATABASE_URL="postgres://puertico:puertico@localhost:5432/puertico?sslmode=disable"
        CREDENTIALS_ISSUER_ID_TOKEN_HS256_SECRET="12345678901234567890123456789012"
        AUTHORIZER_KETO_WARDEN_KETO_URL=http://localhost:4466
        CREDENTIALS_ISSUER_ID_TOKEN_ALGORITHM=ory-hydra
@@ -275,7 +292,7 @@ services.postgresql = {
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
-       DATABASE_URL="postgres://puertico@localhost:5432/puertico?sslmode=disable"
+       DATABASE_URL="postgres://puertico:puertico@localhost:5432/puertico?sslmode=disable"
        COMPILER_DIR="/d/keto_compiler"
        ISSUER_URL=http://localhost:4455/
        AUTHENTICATOR_OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL=http://localhost:4444/oauth2/token
@@ -300,17 +317,34 @@ services.postgresql = {
    wantedBy = [ "default.target" ];
  };
 
+ systemd.services.pgbouncer = {
+   description = "pgbouncer - happy postgres";
+   serviceConfig = {
+     Type = "simple";
+     ExecStart = "${pkgs.pgbouncer}/bin/pgbouncer /d/pgbouncer/pgbouncer.ini";
+     ExecStop = "/run/current-system/sw/bin/pkill pgbouncer";
+     Restart = "on-failure";
+     User= "puertico";
+   };
+   wantedBy = [ "default.target" ];
+ };
+
+
+
  systemd.services.hydra.enable = true;
  systemd.services.oryproxy.enable = true;
  systemd.services.oryapi.enable = true;
  systemd.services.keto.enable = true;
  systemd.services.tegola.enable = true;
+ systemd.services.pgbouncer.enable = true;
 
 
 services.nginx = {
   enable = true;
   user = "puertico";
-  package = pkgs.openresty;
+  recommendedGzipSettings = true;
+  recommendedOptimisation = true;
+  package = pkgs.nginx;
   config = ''
   events {
     worker_connections  4096;
@@ -318,18 +352,45 @@ services.nginx = {
   http {
     include       ${pkgs.nginx}/conf/mime.types;
     default_type  application/octet-stream;
-
-    upstream database {
-      postgres_server 127.0.0.1 dbname=puertico user=puertico;
-    }
+    brotli on;
+    brotli_static on;
+    brotli_types *;
+    brotli_comp_level 6;
 
     server {
       listen 80;
       server_name puerti.co;
       return 301 https://$server_name$request_uri;
+      add_header Strict-Transport-Security "max-age=15768000;" always;
 
       location /.well-known/acme-challenge {
          root /d/challenges/;
+      }
+    }
+
+    server {
+      listen 80;
+      server_name fresco.puerti.co;
+
+      location /.well-known/acme-challenge {
+         root /d/challenges/;
+      }
+    }
+
+    server {
+      listen 443 ssl http2; 
+      server_name fresco.puerti.co;
+
+      ssl_certificate /var/lib/acme/fresco.puerti.co/fullchain.pem;
+      ssl_certificate_key /var/lib/acme/fresco.puerti.co/key.pem;
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_prefer_server_ciphers on;
+      ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+aRSA+SHA384 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
+      ssl_session_cache shared:ssl_session_cache:10m;
+      add_header Strict-Transport-Security "max-age=15768000; includeSubDomains" always;
+
+      location / {
+         root /d/fresco.puerti.co/;
       }
     }
 
@@ -338,7 +399,9 @@ services.nginx = {
       server_name puerti.co;
       ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
       ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
+      add_header Strict-Transport-Security "max-age=15768000; includeSubDomains" always;
 
+    
       ssl_protocols TLSv1.2 TLSv1.3;
       ssl_prefer_server_ciphers on;
       ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+aRSA+SHA384 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
@@ -360,6 +423,15 @@ services.nginx = {
         proxy_pass http://localhost:9090/;
       }
 
+      location /fresco/ {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_redirect     off;
+
+        proxy_pass http://fresco.puerti.co/;
+      }
+
       location /capabilities {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -368,6 +440,7 @@ services.nginx = {
 
 	proxy_pass http://localhost:9090/capabilities;
       }
+
        location /maps {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -418,8 +491,6 @@ services.nginx = {
           return 444;
        } 
 
-       # index index.html;
-
         if ($request_method = 'OPTIONS') {
           add_header 'Access-Control-Allow-Origin' '$http_origin';
           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
@@ -449,7 +520,12 @@ services.nginx = {
       }
 
       location /kepler {
-        index index.html;
+          index index.html;
+      }
+
+      location /kepler/index.html {
+        http2_push kepler@0.2.1/umd/keplergl.min.js;
+        http2_push react-redux@4.4.9/dist/react-redux.min.js;
       }
 
       location /wfs {
@@ -548,66 +624,7 @@ services.nginx = {
        }
     }
 
-    location /keplermaps {
-      client_max_body_size 500M;
-      postgres_pass database;
-      rds_json on;
-      postgres_query    HEAD GET  "SELECT id, created_at FROM maps";
- 
-      postgres_escape $body $request_body;
-      
-      postgres_query
-        POST "INSERT INTO maps (datasets, config, info) VALUES($body::jsonb->'datasets', $body::jsonb->'config', $body::jsonb->'info') RETURNING *";
-      postgres_rewrite  POST changes 201;
-    }
-
-    location ~ /keplermaps/(?<id>\d+).json {
-
-
-        if ($request_method = 'OPTIONS') {
-          add_header 'Access-Control-Allow-Origin' '$http_origin';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
-          add_header 'Access-Control-Max-Age' 1728000;
-          add_header 'Content-Type' 'text/plain; charset=utf-8';
-          add_header 'Content-Length' 0;
-          return 204;
-        }
-
-        if ($request_method = 'POST') {
-          add_header 'Access-Control-Allow-Origin' '$http_origin';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
-          add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
-        }
-
-        if ($request_method = 'GET') {
-          add_header 'Access-Control-Allow-Origin' '$http_origin';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
-          add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
-        }
-
-
-
-      postgres_pass database;
-      rds_json  on;
-      postgres_escape $escaped_id $id;
-      postgres_query    HEAD GET  "SELECT * FROM maps WHERE id=$escaped_id";
-      postgres_rewrite  HEAD GET  no_rows 410;
-
-      postgres_escape $body  $request_body;
-
-      postgres_query
-        PUT "UPDATE maps SET datasets=$body::json->'datasets', config=$body::jsonb->'config', info=$body::jsonb->'info' WHERE id=$escaped_id RETURNING *";
-      postgres_rewrite  PUT no_changes 410;
-
-      postgres_query    DELETE  "DELETE FROM maps WHERE id=$escaped_id";
-      postgres_rewrite  DELETE  no_changes 410;
-      postgres_rewrite  DELETE  changes 204;
-    }
-
-      location /consent {
+     location /consent {
        default_type text/plain;
        content_by_lua_block {
          ngx.say('Consent area.')
