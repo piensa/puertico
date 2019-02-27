@@ -2,9 +2,9 @@
 
 let
    piensa = import (builtins.fetchTarball https://github.com/piensa/nur-packages/archive/master.tar.gz) {};
-in
-
-{
+   domain = "puerti.co";
+   admin_email = "ingenieroariel@gmail.com";
+in rec {
   imports =
     [ <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
     ];
@@ -50,17 +50,16 @@ in
     allowUnfree = true;
   };
 
-nixpkgs.overlays = [ (self: super: {
-  nginx = super.nginx.override {
-    modules = [
-      pkgs.nginxModules.lua
-      pkgs.nginxModules.dav
-      pkgs.nginxModules.moreheaders
-      pkgs.nginxModules.brotli
-    ];
-  };
-  } ) ];
-
+  nixpkgs.overlays = [ (self: super: {
+    nginx = super.nginx.override {
+      modules = [
+        pkgs.nginxModules.lua
+        pkgs.nginxModules.dav
+        pkgs.nginxModules.moreheaders
+        pkgs.nginxModules.brotli
+      ];
+    };
+  })];
 
   environment.systemPackages = with pkgs; [
     git vim mutt spectacle
@@ -84,7 +83,7 @@ nixpkgs.overlays = [ (self: super: {
      hostName = "nuc";
      nameservers = [ "1.1.1.1" "8.8.8.8"];
      extraHosts = ''
-     192.168.192.2 nuc puerti.co
+     192.168.192.2 ${networking.hostName} ${domain} fresco.${domain}
      '';
      firewall = {
         enable = true;
@@ -130,6 +129,13 @@ nixpkgs.overlays = [ (self: super: {
       # use this if they aren't displayed properly:
       export _JAVA_AWT_WM_NONREPARENTING=1
     '';
+
+  ##
+  ## If you have issues with delete not working on root, here is the fix:
+  # nix-shell -p ncurses
+  # infocmp -Cr > termite.terminfo
+  # tic -x termite.terminfo
+  #
   };
 
 
@@ -159,13 +165,13 @@ nixpkgs.overlays = [ (self: super: {
   };
 
 security.acme.certs = {
-  "puerti.co" = {
+  "${domain}" = {
     webroot = "/d/challenges/";
-    email = "ingenieroariel@gmail.com";
+    email = "${admin_email}";
   };
- "fresco.puerti.co" = {
+ "fresco.${domain}" = {
     webroot = "/d/challenges/";
-    email = "ingenieroariel@gmail.com";
+    email = "${admin_email}";
   };
 };
 
@@ -224,9 +230,9 @@ services.postgresql = {
      User = "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
        DATABASE_URL="postgres://puertico:puertico@localhost:5432/puertico?sslmode=disable"
-       OAUTH2_ISSUER_URL="https://puerti.co/hydra"
-       OAUTH2_CONSENT_URL="https://puerti.co/consent"
-       OAUTH2_LOGIN_URL="https://puerti.co/login"
+       OAUTH2_ISSUER_URL="https://${domain}/hydra"
+       OAUTH2_CONSENT_URL="https://${domain}/consent"
+       OAUTH2_LOGIN_URL="https://${domain}/login"
        OAUTH2_ISSUER_URL=http://localhost:4444
        SYSTEM_SECRET="unsafe-way-to-set-the-system-secret"
      '';
@@ -373,7 +379,7 @@ services.nginx = {
 
     server {
       listen 80;
-      server_name puerti.co;
+      server_name ${domain};
       return 301 https://$server_name$request_uri;
       add_header Strict-Transport-Security "max-age=15768000;" always;
 
@@ -384,7 +390,7 @@ services.nginx = {
 
     server {
       listen 80;
-      server_name fresco.puerti.co;
+      server_name fresco.${domain};
 
       location /.well-known/acme-challenge {
          root /d/challenges/;
@@ -393,10 +399,10 @@ services.nginx = {
 
     server {
       listen 443 ssl http2; 
-      server_name fresco.puerti.co;
+      server_name fresco.${domain};
 
-      ssl_certificate /var/lib/acme/fresco.puerti.co/fullchain.pem;
-      ssl_certificate_key /var/lib/acme/fresco.puerti.co/key.pem;
+      ssl_certificate /var/lib/acme/fresco.${domain}/fullchain.pem;
+      ssl_certificate_key /var/lib/acme/fresco.${domain}/key.pem;
       ssl_protocols TLSv1.2 TLSv1.3;
       ssl_prefer_server_ciphers on;
       ssl_ciphers "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM EECDH+ECDSA+SHA384 EECDH+aRSA+SHA384 !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK !SRP !DSS";
@@ -404,7 +410,7 @@ services.nginx = {
       add_header Strict-Transport-Security "max-age=15768000; includeSubDomains" always;
 
       location / {
-         root /d/fresco.puerti.co/;
+         root /d/fresco.${domain}/;
 
         if ($request_method = 'OPTIONS') {
           add_header 'Access-Control-Allow-Origin' '*';
@@ -435,9 +441,9 @@ services.nginx = {
 
     server {
       listen 443 ssl http2;
-      server_name puerti.co;
-      ssl_certificate /var/lib/acme/puerti.co/fullchain.pem;
-      ssl_certificate_key /var/lib/acme/puerti.co/key.pem;
+      server_name ${domain};
+      ssl_certificate /var/lib/acme/${domain}/fullchain.pem;
+      ssl_certificate_key /var/lib/acme/${domain}/key.pem;
       add_header Strict-Transport-Security "max-age=15768000; includeSubDomains" always;
 
     
@@ -451,7 +457,7 @@ services.nginx = {
       client_max_body_size 1000m;
       proxy_buffering off;
 
-      root "/d/puerti.co";
+      root "/d/${domain}";
 
       location /tegola {
         proxy_set_header Host $host;
@@ -468,7 +474,7 @@ services.nginx = {
         proxy_set_header X-Forwarded-Proto https;
         proxy_redirect     off;
 
-        proxy_pass http://fresco.puerti.co/;
+        proxy_pass http://fresco.${domain}/;
       }
 
       location /capabilities {
