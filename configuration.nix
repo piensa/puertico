@@ -1,13 +1,12 @@
 { config, lib, pkgs, ... }:
 
 let
-   piensa = pkgs.callPackage ./piensa/default.nix{};
+   piensa = import (builtins.fetchTarball https://github.com/piensa/nur-packages/archive/master.tar.gz) {};
 in
 
 {
   imports =
     [ <nixpkgs/nixos/modules/installer/scan/not-detected.nix>
-      ./ui.nix      
     ];
 
   boot.initrd.availableKernelModules = [ "xhci_pci" "ahci"
@@ -45,22 +44,14 @@ in
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.grub.useOSProber = true;
 
-  system.stateVersion = "18.09"; 
+  system.autoUpgrade.channel = "https://nixos.org/channels/nixpkgs-unstable";
 
   nixpkgs.config = {
     allowUnfree = true;
   };
 
-  nixpkgs.config.packageOverrides = pkgs: {
-    nur = import (builtins.fetchTarball {
-      url = "https://github.com/nix-community/NUR/archive/11937cf90187b7cb1eb43b02c8fc3a45cb16fd8b.tar.gz";
-      sha256 = "0q485pc2d7m1jl72rd9b5jliq910q03sghg2vwxx5xg3wb8i21sc";
-    }
-   ){
-      inherit pkgs;
-  };
-
-  nginx = pkgs.nginx.override {
+nixpkgs.overlays = [ (self: super: {
+  nginx = super.nginx.override {
     modules = [
       pkgs.nginxModules.lua
       pkgs.nginxModules.dav
@@ -68,8 +59,8 @@ in
       pkgs.nginxModules.brotli
     ];
   };
+  } ) ];
 
-  };
 
   environment.systemPackages = with pkgs; [
     git vim mutt spectacle
@@ -86,9 +77,6 @@ in
     piensa.fresco
     piensa.colombia
     piensa.jamaica
-
-    firefox inkscape gimp
-    #nur.repos.piensa.blender
 
   ];
 
@@ -131,13 +119,39 @@ in
 
   programs.mosh.enable = true;
 
+  programs.sway-beta = {
+    enable = true;
+    extraSessionCommands = ''
+      export SDL_VIDEODRIVER=wayland
+      # needs qt5.qtwayland in systemPackages
+      export QT_QPA_PLATFORM=wayland
+      export QT_WAYLAND_DISABLE_WINDOWDECORATION="1"
+      # Fix for some Java AWT applications (e.g. Android Studio),
+      # use this if they aren't displayed properly:
+      export _JAVA_AWT_WM_NONREPARENTING=1
+    '';
+  };
+
+
   users.users.x = {
     isNormalUser = true;
     home = "/x";
     extraGroups = ["libvirtd"];
     openssh.authorizedKeys.keys = [ "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2SGK2vk4KGjkqUcDEdBYwHLj9utMTTShyPYAWBQx8jL0ezUoHqPl7ChJqLuI2ZWMVTW2QnGHl2oZjJRK6ngF0i9hhpjjONEHOdK9YHHaXeUXgad0mAT1R+365jIR1PYOvx9kC7pk8V1Iw3EHmnRRlAHtH19sAfGiyUopZ/N2gjVE0QMhotlKjwDlG9mQR/iFJq604R/nvAvTNXgHuuVou25t1kJkGNxAbiy3jOjKQHlR4NTTB2ttAtodJDU45+FNIWOiZYLbolYdAt9VLIYngDv9aSbxUCsF2ObHZ+Ovqmx0+BK1EKkZ01SYgwIQp3Nfk09xx03y28oFlvG+O6GX3 x@xs-MacBook.local" ];
 
+
+    packages = with pkgs; [
+      wget vim tmux htop git ripgrep mosh killall
+      qemu nixops
+      gtk3 qt5.qtwayland  swaylock swayidle dmenu i3status i3status-rust termite rofi light firefox-wayland vlc brightnessctl grim slurp 
+      kmail vscode
+      spectacle
+      blender godot gimp inkscape krita audacity
+      libreoffice
+    ];
+
   };
+
 
   users.users.puertico = {
     home = "/d";
@@ -163,9 +177,9 @@ services.minio = {
 
 services.postgresql = {
     enable = true;
-    package = pkgs.postgresql100;
+    package = pkgs.postgresql_11;
     enableTCPIP = true;
-    extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql100; }) ];
+    extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql_11; }) ];
 
     authentication = pkgs.lib.mkOverride 10 ''
       local all all trust
@@ -203,9 +217,9 @@ services.postgresql = {
      LimitNOFILE=65536;
      PermissionsStartOnly=true;
      Type="simple";
-     ExecStart = "${pkgs.nur.repos.piensa.hydra}/bin/hydra serve all --dangerous-force-http";
+     ExecStart = "${piensa.hydra}/bin/hydra serve all --dangerous-force-http";
      ExecStop = "/run/current-system/sw/bin/pkill hydra";
-     ExecStartPre = "${pkgs.nur.repos.piensa.hydra}/bin/hydra migrate sql -e";
+     ExecStartPre = "${piensa.hydra}/bin/hydra migrate sql -e";
      Restart = "on-failure";
      User = "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
@@ -224,9 +238,9 @@ services.postgresql = {
    description = "ORY Oathkeeper API";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper serve api";
+     ExecStart = "${piensa.oathkeeper}/bin/oathkeeper serve api";
      ExecStop = "/run/current-system/sw/bin/pkill oathkeeper";
-     ExecStartPre = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper migrate sql -e";
+     ExecStartPre = "${piensa.oathkeeper}/bin/oathkeeper migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
@@ -253,9 +267,9 @@ services.postgresql = {
    description = "ORY Oathkeeper Proxy";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper serve proxy";
+     ExecStart = "${piensa.oathkeeper}/bin/oathkeeper serve proxy";
      ExecStop = "/run/current-system/sw/bin/pkill oathkeeper";
-     ExecStartPre = "${pkgs.nur.repos.piensa.oathkeeper}/bin/oathkeeper migrate sql -e";
+     ExecStartPre = "${piensa.oathkeeper}/bin/oathkeeper migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "ory-proxy-env" ''
@@ -286,9 +300,9 @@ services.postgresql = {
    description = "ORY Keto";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.nur.repos.piensa.keto}/bin/keto serve";
+     ExecStart = "${piensa.keto}/bin/keto serve";
      ExecStop = "/run/current-system/sw/bin/pkill keto";
-     ExecStartPre = "${pkgs.nur.repos.piensa.keto}/bin/keto migrate sql -e";
+     ExecStartPre = "${piensa.keto}/bin/keto migrate sql -e";
      Restart = "on-failure";
      User= "puertico";
      EnvironmentFile = pkgs.writeText "hydra-env" ''
@@ -309,7 +323,7 @@ services.postgresql = {
    description = "Tegola - Mapbox Vector Tiles Server";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.nur.repos.piensa.tegola}/bin/tegola server --config=/d/tegola/tegola.toml";
+     ExecStart = "${piensa.tegola}/bin/tegola server --config=/d/tegola/tegola.toml";
      ExecStop = "/run/current-system/sw/bin/pkill tegola";
      Restart = "on-failure";
      User= "puertico";
@@ -335,7 +349,7 @@ services.postgresql = {
  systemd.services.oryproxy.enable = true;
  systemd.services.oryapi.enable = true;
  systemd.services.keto.enable = true;
- systemd.services.tegola.enable = true;
+ systemd.services.tegola.enable = false;
  systemd.services.pgbouncer.enable = true;
 
 
@@ -710,5 +724,5 @@ services.nginx = {
  '';
 
 };
-
 }
+
