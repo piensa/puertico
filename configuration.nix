@@ -76,7 +76,6 @@ in rec {
     piensa.fresco
     piensa.colombia
     piensa.jamaica
-
   ];
 
   networking = {
@@ -188,15 +187,20 @@ services.postgresql = {
     extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql_11; }) ];
 
     authentication = pkgs.lib.mkOverride 10 ''
-      local all all trust
-      host all all localhost trust
+      local postgres all ident
+      host puertico puertico localhost trust
     '';
     initialScript = pkgs.writeText "backend-initScript" ''
       CREATE ROLE puertico;
       CREATE DATABASE puertico;
       GRANT ALL PRIVILEGES ON DATABASE puertico TO puertico;
 
-      USE DATABASE puertico;
+      ALTER ROLE puertico WITH LOGIN;
+
+      \c puertico;
+
+      CREATE EXTENSION postgis;
+      CREATE EXTENSION hstore;
 
       CREATE TABLE maps (
         id serial PRIMARY KEY,
@@ -337,26 +341,38 @@ services.postgresql = {
    wantedBy = [ "default.target" ];
  };
 
- systemd.services.pgbouncer = {
-   description = "pgbouncer - happy postgres";
+ systemd.services.logico = {
+   description = "Logico - ORY Login and Consent";
    serviceConfig = {
      Type = "simple";
-     ExecStart = "${pkgs.pgbouncer}/bin/pgbouncer /d/pgbouncer/pgbouncer.ini";
-     ExecStop = "/run/current-system/sw/bin/pkill pgbouncer";
+     ExecStart = "${piensa.logico}/bin/logico";
+     ExecStop = "/run/current-system/sw/bin/pkill logico";
      Restart = "on-failure";
      User= "puertico";
+     EnvironmentFile = pkgs.writeText "logico-env" ''
+      DB_USER=puertico
+      DB_PW=puertico
+      DB_NAME=puertico
+      DB_HOST=localhost
+      DB_PORT=5432
+      HYDRA_BROWSER_URL=http://${domain}/oauth2/auth
+      HYDRA_PUBLIC_URL=https://${domain}/oauth2/token
+      HYDRA_ADMIN_URL=http://localhost:4445
+      HYDRA_CLIENT_ID=piensa
+      HYDRA_CLIENT_SECRET=piensa
+      HYDRA_SCOPES=openid,offline,eat,sleep,rave,repeat
+      PORT=3000
+     '';
    };
    wantedBy = [ "default.target" ];
  };
-
-
 
  systemd.services.hydra.enable = true;
  systemd.services.oryproxy.enable = true;
  systemd.services.oryapi.enable = true;
  systemd.services.keto.enable = true;
- systemd.services.tegola.enable = false;
- systemd.services.pgbouncer.enable = true;
+ systemd.services.logico.enable = true;
+ systemd.services.tegola.enable = true;
 
 
 services.nginx = {
@@ -468,6 +484,15 @@ services.nginx = {
         proxy_pass http://localhost:9090/;
       }
 
+      location /logico/ {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_redirect     off;
+
+        proxy_pass http://localhost:3000/;
+      }
+
       location /fresco/ {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -496,10 +521,10 @@ services.nginx = {
       }
 
 
-      location /hydra {
+      location /oauth2/ {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:4444/;
+        proxy_pass http://localhost:4444/oauth2/;
       }
 
       location /keto {
@@ -623,7 +648,7 @@ services.nginx = {
               description = "OGC WFS 3.0 OpenAPI definition. (conformance  classes: Core, GeoJSON, HTML and OpenAPI 3.0",
               contact = {
                  name = "Ariel Núñez",
-                 email = "ariel@piensa.co",
+                 email = "${admin_email}",
                  url = protocol .. server_name,
               },
               license = {
@@ -665,65 +690,7 @@ services.nginx = {
        content_by_lua_block {
          ngx.say('collections')
        }
-    }
-
-     location /consent {
-       default_type text/plain;
-       content_by_lua_block {
-         ngx.say('Consent area.')
-       }
-
-       access_by_lua_block {
-         -- Some variable declarations.
-         local authorization, err = ngx.req.get_headers()["authorization"]
-         
-         if authorization then
-           -- FIXME: Implement checking the authorization is valid.
-           return
-         end
-
-         -- Internally rewrite the URL so that we serve
-         -- /auth/ if there's no valid token.
-	 ngx.exec("/auth/")
-       }
-      }
-
-       location /login {
-         default_type application/json;
-         content_by_lua_block {
-           local cjson = require "cjson"
-           local server_name = ngx.var.server_name
-           local protocol = "https://"
-
-           local args = ngx.req.get_uri_args()
-           local email = args.email 
-           local json = cjson.encode({
-               link = protocol .. server_name .. "/login" .. "/one-time-hashed-sign-in-link-sent-via-email",
-               secret = "brave platypus",
-               email = email,
-               description = "Click on the link sent to your email if it contains the words brave platypus to finish the sign in process",
-               note = "This link is being returned as a proof of concept, so you can avoid checking your email - will be removed in final release"
-           }):gsub("\\/", "/")
-           ngx.say(json)
-         }
-       }
-        location ~ login/(?<magic_code>\w+) {
-          default_type application/json;
-          content_by_lua_block {
-            local cjson = require "cjson"
-            local server_name = ngx.var.server_name
-            local protocol = "https://"
-            local magic_code = ngx.var.magic_code
-
-            -- Check magic_code is valid and contact hydra?
-
-            local args = ngx.req.get_uri_args()
-            local json = cjson.encode({
-              description = "This user is who she claims she is"
-            }):gsub("\\/", "/")
-            ngx.say(json)
-          }
-        } 
+      } 
      }
     }
  
