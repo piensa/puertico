@@ -72,6 +72,7 @@ in rec {
     nghttp2
 
     piensa.imposm
+    piensa.puertico-osm
     piensa.kepler
     piensa.fresco
     piensa.colombia
