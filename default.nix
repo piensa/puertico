@@ -42,13 +42,11 @@ in pkgs.stdenv.mkDerivation rec {
    src = builtins.filterSource (p: t: pkgs.lib.cleanSourceFilter p t && baseNameOf p != "data") ./.;
 
    buildInputs = with pkgs; [
-     pg
+   #  pg
      minio mc
      curl unzip gdal less
+     osmctools
    ] ++ [
-    piensa.hydra
-    piensa.keto
-    piensa.oathkeeper
     piensa.tegola
     piensa.imposm
     piensa.puertico-osm
