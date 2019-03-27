@@ -19,11 +19,6 @@ database = "puertico"
 user = "puertico"
 password = ""
 srid = 4326
-	[[providers.layers]]
-	name = "land_8-20"
-	geometry_fieldname = "geometry"
-	id_fieldname = "ogc_fid"
-	sql = "SELECT ST_AsBinary(wkb_geometry) AS geometry, ogc_fid FROM land_polygons WHERE wkb_geometry && !BBOX!"
 
 	# Water
 	[[providers.layers]]

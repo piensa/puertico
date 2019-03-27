@@ -37,8 +37,8 @@ let
     osmconvert uninorte.osm -B=uninorte.poly  -o=uninorte.pbf
   '';
   puertico-loaduninorte = pkgs.writeShellScriptBin "puertico-loaduninorte" ''
-    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping ${piensa.puertico-osm}/imposm3.json -read uninorte.pbf -write -overwritecache -srid 4326
-    imposm  import -connection postgis://puertico:puertico@localhost/puertico -mapping ${piensa.puertico-osm}/imposm3.json -deployproduction -srid 4326
+    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping imposm3.json -read uninorte.pbf -write -overwritecache -srid 4326
+    imposm  import -connection postgis://puertico:puertico@localhost/puertico -mapping imposm3.json -deployproduction -srid 4326
     psql puertico -a -f  ${piensa.puertico-osm}/postgis_helpers.sql
 #    psql puertico -a -f  ${piensa.puertico-osm}/postgis_index.sql
   '';
