@@ -17,7 +17,7 @@ let
     pg_ctl -D $PGDATA -l $PGDATA/server.log start -w
   '';
   puertico-tegola = pkgs.writeShellScriptBin "puertico-tegola" ''
-    tegola serve --config=${piensa.puertico-osm}/tegola.toml
+    tegola serve --config=tegola.toml
   '';
   puertico-stop = pkgs.writeShellScriptBin "puertico-stop" ''
     pg_ctl stop
