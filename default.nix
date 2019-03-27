@@ -19,6 +19,9 @@ let
   puertico-tegola = pkgs.writeShellScriptBin "puertico-tegola" ''
     tegola serve --config=tegola.toml
   '';
+  puertico-cache = pkgs.writeShellScriptBin "puertico-cache" ''
+    tegola cache seed --config=tegola.toml --bounds "-74.855518, 11.011886, -74.839897, 11.027220" --min-zoom 17 --max-zoom 22 --overwrite
+  '';
   puertico-stop = pkgs.writeShellScriptBin "puertico-stop" ''
     pg_ctl stop
   '';
@@ -63,6 +66,7 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-init
     puertico-start
     puertico-tegola
+    puertico-cache
     puertico-stop
     puertico-loadworld
     puertico-loaduninorte

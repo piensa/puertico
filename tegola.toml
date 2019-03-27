@@ -19,6 +19,7 @@ database = "puertico"
 user = "puertico"
 password = ""
 srid = 4326
+max_connections = 10
 
 	# Water
 	[[providers.layers]]
@@ -195,175 +196,81 @@ attribution = "OpenStreetMap" # map attribution
 center = [-74.8485, 11.0206, 15.0] # optional center value. part of the TileJSON spec
 
 	[[maps.layers]]
-	name = "admin_lines"
-	provider_layer = "osm.admin_boundaries_8-12"
-	min_zoom = 8
-	max_zoom = 12
-
-	[[maps.layers]]
-	name = "admin_lines"
-	provider_layer = "osm.admin_boundaries_13-20"
-	min_zoom = 13
-	max_zoom = 20
-
-	# Land Use
-	[[maps.layers]]
-	name = "landuse_areas"
-	provider_layer = "osm.landuse_areas_gen0"
-	min_zoom = 3
-	max_zoom = 5
-
-	[[maps.layers]]
-	name = "landuse_areas"
-	provider_layer = "osm.landuse_areas_gen0_6"
-	min_zoom = 6
-	max_zoom = 9
-
-	[[maps.layers]]
-	name = "landuse_areas"
-	provider_layer = "osm.landuse_areas_gen1"
-	min_zoom = 10
-	max_zoom = 12
-
-	[[maps.layers]]
 	name = "landuse_areas"
 	provider_layer = "osm.landuse_areas"
-	min_zoom = 13
-	max_zoom = 20
-
-	# Water Areas
-	[[maps.layers]]
-	name = "water_areas"
-	provider_layer = "osm.water_areas_gen0"
-	min_zoom = 3
-	max_zoom = 5
-
-	[[maps.layers]]
-	name = "water_areas"
-	provider_layer = "osm.water_areas_gen0_6"
-	min_zoom = 6
-	max_zoom = 9
-
-	[[maps.layers]]
-	name = "water_areas"
-	provider_layer = "osm.water_areas_gen1"
-	min_zoom = 10
-	max_zoom = 12
+	min_zoom = 16
+	max_zoom = 22
 
 	[[maps.layers]]
 	name = "water_areas"
 	provider_layer = "osm.water_areas"
-	min_zoom = 13
-	max_zoom = 20
-
-	# Water Lines
-	[[maps.layers]]
-	name = "water_lines"
-	provider_layer = "osm.water_lines_gen0"
-	min_zoom = 8
-	max_zoom = 12
-
-	[[maps.layers]]
-	name = "water_lines"
-	provider_layer = "osm.water_lines_gen1"
-	min_zoom = 13
-	max_zoom = 14
+	min_zoom = 16
+	max_zoom = 22
 
 	[[maps.layers]]
 	name = "water_lines"
 	provider_layer = "osm.water_lines"
-	min_zoom = 15
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
-	# Transport Lines (Roads, Rail, Aviation)
-	[[maps.layers]]
-	name = "transport_lines"
-	provider_layer = "osm.transport_lines_gen0"
-	min_zoom = 7
-	max_zoom = 8
-
-	[[maps.layers]]
-	name = "transport_lines"
-	provider_layer = "osm.transport_lines_gen1"
-	min_zoom = 9
-	max_zoom = 10
-
-	[[maps.layers]]
-	name = "transport_lines"
-	provider_layer = "osm.transport_lines_11-12"
-	min_zoom = 11
-	max_zoom = 12
-
-	[[maps.layers]]
-	name = "transport_lines"
-	provider_layer = "osm.transport_lines_13"
-	min_zoom = 13
-	max_zoom = 13
 
 	[[maps.layers]]
 	name = "transport_lines"
 	provider_layer = "osm.transport_lines_14-20"
-	min_zoom = 14
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Transport Areas
 	[[maps.layers]]
 	name = "transport_areas"
 	provider_layer = "osm.transport_areas"
-	min_zoom = 12
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Transport Points
 	[[maps.layers]]
 	name = "transport_points"
 	provider_layer = "osm.transport_points"
-	min_zoom = 14
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Amenity Areas
 	[[maps.layers]]
 	name = "amenity_areas"
 	provider_layer = "osm.amenity_areas"
-	min_zoom = 14
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Amenity Points
 	[[maps.layers]]
 	name = "amenity_points"
 	provider_layer = "osm.amenity_points"
-	min_zoom = 14
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Other Points
 	[[maps.layers]]
 	name = "other_points"
 	provider_layer = "osm.other_points"
-	min_zoom = 14
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Other Lines
 	[[maps.layers]]
 	name = "other_lines"
 	provider_layer = "osm.other_lines"
-	min_zoom = 14
-	max_zoom = 20
-
-	# Other Areas
-	[[maps.layers]]
-	name = "other_areas"
-	provider_layer = "osm.other_areas_filter"
-	min_zoom = 6
-	max_zoom = 8
+	min_zoom = 16
+	max_zoom = 22
 
 	[[maps.layers]]
 	name = "other_areas"
 	provider_layer = "osm.other_areas"
-	min_zoom = 9
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
 
 	# Buildings
 	[[maps.layers]]
 	name = "buildings"
 	provider_layer = "osm.buildings"
-	min_zoom = 14
-	max_zoom = 20
+	min_zoom = 16
+	max_zoom = 22
