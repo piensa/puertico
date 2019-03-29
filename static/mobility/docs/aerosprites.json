@@ -1,0 +1,179 @@
+{
+
+  "084_AD_CivilLand": {
+    "height":30,
+    "pixelRatio":1,
+    "width":30,
+    "x":71,
+    "y":1
+  }, 
+
+  "084_AD_CivilLand_buffer": {
+    "height":35,
+    "pixelRatio":1,
+    "width":35,
+    "x":1,
+    "y":1
+  }, 
+
+  "101_Navaid_VOR": {
+    "height":18,
+    "pixelRatio":1,
+    "width":20,
+    "x":196,
+    "y":44
+  }, 
+
+  "101_Navaid_VOR_buffer": {
+    "height":22,
+    "pixelRatio":1,
+    "width":22,
+    "x":27,
+    "y":38
+  }, 
+
+  "102_Navaid_DME": {
+    "height":18,
+    "pixelRatio":1,
+    "width":20,
+    "x":198,
+    "y":1
+  }, 
+
+  "102_Navaid_DME_buffer": {
+    "height":28,
+    "pixelRatio":1,
+    "width":28,
+    "x":51,
+    "y":34
+  }, 
+
+  "103_Navaid_VOR_DME": {
+    "height":18,
+    "pixelRatio":1,
+    "width":20,
+    "x":200,
+    "y":21
+  }, 
+
+  "103_Navaid_VOR_DME_buffer": {
+    "height":27,
+    "pixelRatio":1,
+    "width":27,
+    "x":81,
+    "y":33
+  }, 
+
+  "107_Navaid_VORTAC": {
+    "height":19,
+    "pixelRatio":1,
+    "width":20,
+    "x":178,
+    "y":23
+  }, 
+
+  "107_Navaid_VORTAC_buffer": {
+    "height":22,
+    "pixelRatio":1,
+    "width":22,
+    "x":130,
+    "y":1
+  }, 
+
+  "121_Compulsory_Fly_By_INT": {
+    "height":15,
+    "pixelRatio":1,
+    "width":18,
+    "x":156,
+    "y":45
+  }, 
+
+  "121_Compulsory_Fly_By_INT_buffer": {
+    "height":20,
+    "pixelRatio":1,
+    "width":20,
+    "x":154,
+    "y":1
+  }, 
+
+  "121_Compulsory_Fly_By_Waypoint": {
+    "height":18,
+    "pixelRatio":1,
+    "width":18,
+    "x":220,
+    "y":1
+  }, 
+
+  "121_Compulsory_Fly_By_Waypoint_buffer": {
+    "height":25,
+    "pixelRatio":1,
+    "width":25,
+    "x":103,
+    "y":1
+  }, 
+
+  "121_On_Request_Fly_By_INT": {
+    "height":15,
+    "pixelRatio":1,
+    "width":18,
+    "x":176,
+    "y":45
+  }, 
+
+  "121_On_Request_Fly_By_INT_buffer": {
+    "height":20,
+    "pixelRatio":1,
+    "width":20,
+    "x":156,
+    "y":23
+  }, 
+
+  "121_On_Request_Fly_By_Waypoint": {
+    "height":18,
+    "pixelRatio":1,
+    "width":18,
+    "x":218,
+    "y":41
+  }, 
+
+  "121_On_Request_Fly_By_Waypoint_buffer": {
+    "height":20,
+    "pixelRatio":1,
+    "width":20,
+    "x":176,
+    "y":1
+  }, 
+
+  "121_On_Request_Fly_Over_Waypoint": {
+    "height":22,
+    "pixelRatio":1,
+    "width":22,
+    "x":132,
+    "y":25
+  }, 
+
+  "121_On_Request_Fly_Over_Waypoint_buffer": {
+    "height":24,
+    "pixelRatio":1,
+    "width":24,
+    "x":1,
+    "y":38
+  }, 
+
+  "140_single_windfarm_no_light": {
+    "height":30,
+    "pixelRatio":1,
+    "width":20,
+    "x":110,
+    "y":28
+  }, 
+
+  "140_single_windfarm_no_light_buffer": {
+    "height":31,
+    "pixelRatio":1,
+    "width":31,
+    "x":38,
+    "y":1
+  }
+
+}

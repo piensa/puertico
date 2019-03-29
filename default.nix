@@ -4,6 +4,37 @@ let
   pkgs = import <nixpkgs>{};
   piensa =  import (fetchTarball https://github.com/piensa/nur-packages/archive/1d0d8c3f9e19ac7fe9bf0eefa4419e6721736a9c.tar.gz) {};
   pg = pkgs.postgresql_11.withPackages(ps: [ps.postgis]);
+  nginx-config = pkgs.writeText "nginx.conf" ''
+daemon            off;
+worker_processes  2;
+
+events {
+    use           epoll;
+    worker_connections  128;
+}
+
+error_log         error.log info;
+
+http {
+    server_tokens off;
+    charset       utf-8;
+
+    access_log    access.log  combined;
+
+    server {
+        server_name   localhost;
+        listen        127.0.0.1:9999;
+
+        error_page    500 502 503 504  /50x.html;
+
+        location      / {
+            root      /x/puertico/static;
+        }
+
+    }
+
+}
+  '';
   puertico-init = pkgs.writeShellScriptBin "puertico-init" ''
     initdb -D $PGDATA --no-locale --encoding=UTF8 --auth=trust --auth-host=trust 
     pg_ctl -D $PGDATA -l $PGDATA/server.log start -w
@@ -12,6 +43,9 @@ let
     psql puertico -c "CREATE EXTENSION postgis;"
     psql puertico -c "CREATE EXTENSION postgis_topology;"
     psql puertico -c "CREATE EXTENSION hstore;"
+  '';
+  puertico-nginx = pkgs.writeShellScriptBin "puertico-nginx" ''
+    nginx -c ${nginx-config} -p /x/puertico/state
   '';
   puertico-start = pkgs.writeShellScriptBin "puertico-start" ''
     pg_ctl -D $PGDATA -l $PGDATA/server.log start -w
@@ -59,10 +93,10 @@ in pkgs.stdenv.mkDerivation rec {
     piensa.tegola
     piensa.imposm
     piensa.puertico-osm
-#    piensa.kepler
-#    piensa.fresco
     piensa.colombia
+    nginx
 
+    puertico-nginx
     puertico-init
     puertico-start
     puertico-tegola
@@ -73,6 +107,7 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-createuninorte
    ];
   shellHooks = ''
-     export PGDATA=$PWD/data;
+     mkdir -p state
+     export PGDATA=$PWD/state/data;
   '';
 }
