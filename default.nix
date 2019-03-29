@@ -51,10 +51,10 @@ http {
     pg_ctl -D $PGDATA -l $PGDATA/server.log start -w
   '';
   puertico-tegola = pkgs.writeShellScriptBin "puertico-tegola" ''
-    tegola serve --config=tegola.toml
+    tegola serve --config=conf/tegola.toml
   '';
   puertico-cache = pkgs.writeShellScriptBin "puertico-cache" ''
-    tegola cache seed --config=tegola.toml --bounds "-74.855518, 11.011886, -74.839897, 11.027220" --min-zoom 17 --max-zoom 22 --overwrite
+    tegola cache seed --config=conf/tegola.toml --bounds "-74.855518, 11.011886, -74.839897, 11.027220" --min-zoom 17 --max-zoom 22 --overwrite
   '';
   puertico-stop = pkgs.writeShellScriptBin "puertico-stop" ''
     pg_ctl stop
@@ -74,8 +74,8 @@ http {
     osmconvert uninorte.osm -B=uninorte.poly  -o=uninorte.pbf
   '';
   puertico-loaduninorte = pkgs.writeShellScriptBin "puertico-loaduninorte" ''
-    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping imposm3.json -read uninorte.pbf -write -overwritecache -srid 4326
-    imposm  import -connection postgis://puertico:puertico@localhost/puertico -mapping imposm3.json -deployproduction -srid 4326
+    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping conf/imposm3.json -read uninorte.pbf -write -overwritecache -srid 4326
+    imposm  import -connection postgis://puertico:puertico@localhost/puertico -mapping conf/imposm3.json -deployproduction -srid 4326
     psql puertico -a -f  ${piensa.puertico-osm}/postgis_helpers.sql
 #    psql puertico -a -f  ${piensa.puertico-osm}/postgis_index.sql
   '';
@@ -107,7 +107,7 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-createuninorte
    ];
   shellHooks = ''
-     mkdir -p state
+     mkdir -p state/logs
      export PGDATA=$PWD/state/data;
   '';
 }
