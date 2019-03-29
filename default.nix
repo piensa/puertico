@@ -1239,7 +1239,6 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-tegola
     puertico-cache
     puertico-stop
-    puertico-loadworld
     puertico-loadarea
     puertico-createarea
    ];
