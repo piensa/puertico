@@ -4,7 +4,9 @@ let
   pkgs = import <nixpkgs>{};
   piensa =  import (fetchTarball https://github.com/piensa/nur-packages/archive/1d0d8c3f9e19ac7fe9bf0eefa4419e6721736a9c.tar.gz) {};
   pg = pkgs.postgresql_11.withPackages(ps: [ps.postgis]);
-  hostname = "localhost:9999";
+  hostName = "127.0.0.1:9999";
+  tegolaPort = "9090";
+  server_url = "http://${hostName}";
 
   index-html = pkgs.writeText "index-html" ''
      <!DOCTYPE html>
@@ -28,7 +30,7 @@ let
 
   var map = new mapboxgl.Map({
       container: 'map',
-      style: '../mobility/uninorte.json',
+      style: 'style.json',
       center: [-74.85, 11.02],
       zoom: 16,
       minZoom: 16,
@@ -45,6 +47,7 @@ let
   '';
 
   style-config = pkgs.writeText "style-config" ''
+{
   "pitch": 0,
   "layers": [
     {
@@ -920,8 +923,8 @@ let
       "source-layer": "transport_lines"
     }
   ],
-  "sprite": "http://localhost:9999/mobility/osm_tegola_spritesheet3",
-  "glyphs": "http://localhost:9999/mobility/fonts/{fontstack}/{range}.pbf",
+  "sprite": "${server_url}/mobility/osm_tegola_spritesheet3",
+  "glyphs": "${server_url}/mobility/fonts/{fontstack}/{range}.pbf",
   "created": "2017-01-04T21:12:33.904Z",
   "name": "mobility3d",
   "bearing": 0,
@@ -942,7 +945,7 @@ let
   "sources": {
     "osm": {
       "type": "vector",
-      "url": "http://localhost:9999/capabilities/osm.json"
+      "url": "${server_url}/capabilities/osm.json"
     }
   },
   "id": "f4652111-6a00-479a-a650-354311684bb3"
@@ -1786,8 +1789,8 @@ let
   '';
   tegola-config = pkgs.writeText "tegola.toml" ''
 [webserver]
-port = ":9090"
-hostname = "${hostname}"
+port = ":${tegolaPort}"
+hostname = "${hostName}"
 
 # Tegola offers three tile caching strategies: "file", "redis", and "s3"
 [cache]
@@ -2094,7 +2097,7 @@ END
     proxy_cache_key "$scheme$request_method$host$request_uri";
     server {
       server_name   localhost;
-      listen        127.0.0.1:9999;
+      listen        ${hostName};
 
       error_page    500 502 503 504  /50x.html;
 
@@ -2110,16 +2113,22 @@ END
       }
 
       location /capabilities {
-        proxy_pass http://localhost:9090/capabilities;
+        proxy_pass http://localhost:${tegolaPort}/capabilities;
       }
 
       location /maps {
-        proxy_pass http://localhost:9090/maps;
+        proxy_pass http://localhost:${tegolaPort}/maps;
       }
 
       location /tegola {
-        proxy_pass http://localhost:9090/;
+        proxy_pass http://localhost:${tegolaPort}/;
       }
+      location /index.html {
+        etag off;
+        add_header etag "\"${builtins.substring 11 32 index-html.outPath}\"";
+        alias ${index-html};
+      }
+
 
       location /style.json {
         etag off;
