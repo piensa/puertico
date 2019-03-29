@@ -12,7 +12,7 @@
         "visibility": "visible"
       },
       "paint": {
-        "background-color": "rgba(27, 37, 52, 1)"
+        "background-color": "rgba(186, 193, 203, 0)"
       }
     },
     {
@@ -316,6 +316,26 @@
       }
     },
     {
+      "id": "university_areas",
+      "source": "osm",
+      "type": "fill",
+      "source-layer": "amenity_areas",
+      "layout": {
+        "visibility": "visible"
+      },
+      "paint": {
+        "fill-color": "rgba(170, 223, 113, 1)"
+      },
+      "filter": [
+        "all",
+        [
+          "in",
+          "type",
+          "university"
+        ]
+      ]
+    },
+    {
       "id": "road_service_case",
       "type": "line",
       "source": "osm",
@@ -338,7 +358,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#cfcdca",
+        "line-color": "#ddd",
         "line-width": {
           "stops": [
             [
@@ -376,7 +396,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "#cfcdca",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -418,7 +438,7 @@
         "line-join": "round"
       },
       "paint": {
-        "line-color": "rgba(216, 213, 207, 1)",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -496,7 +516,7 @@
         "visibility": "visible"
       },
       "paint": {
-        "line-color": "rgba(149, 150, 143, 1)",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -542,7 +562,7 @@
         "line-cap": "butt"
       },
       "paint": {
-        "line-color": "rgba(129, 130, 124, 1)",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -592,7 +612,7 @@
         "line-cap": "round"
       },
       "paint": {
-        "line-color": "rgba(149, 150, 143, 1)",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -695,6 +715,57 @@
       }
     },
     {
+      "minzoom": 0,
+      "layout": {
+        "visibility": "visible"
+      },
+      "maxzoom": 24,
+      "filter": [
+        "all",
+        [
+          "!has",
+          "height"
+        ]
+      ],
+      "type": "fill-extrusion",
+      "source": "osm",
+      "id": "building_tilt_na",
+      "paint": {
+        "fill-extrusion-color": "rgba(238, 165, 91, 1)",
+        "fill-extrusion-height": 5,
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 1
+      },
+      "source-layer": "buildings"
+    },
+    {
+      "minzoom": 0,
+      "layout": {
+        "visibility": "visible"
+      },
+      "maxzoom": 24,
+      "filter": [
+        "any",
+        [
+          "has",
+          "height"
+        ]
+      ],
+      "type": "fill-extrusion",
+      "source": "osm",
+      "id": "building_tilt",
+      "paint": {
+        "fill-extrusion-color": "rgba(249, 9, 38, 1)",
+        "fill-extrusion-height": {
+          "property": "height",
+          "type": "identity"
+        },
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 1
+      },
+      "source-layer": "buildings"
+    },
+    {
       "minzoom": 4,
       "layout": {
         "visibility": "visible"
@@ -712,7 +783,7 @@
       "source": "osm",
       "id": "roads_motorway_z4_minzoom",
       "paint": {
-        "line-color": "rgba(149, 150, 143, 1)",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -746,7 +817,7 @@
       "source": "osm",
       "id": "road_motorway_z4",
       "paint": {
-        "line-color": "rgba(73, 74, 69, 1)",
+        "line-color": "#4a4a4a",
         "line-width": {
           "stops": [
             [
@@ -796,62 +867,11 @@
       "source": "osm",
       "id": "label_road_name",
       "paint": {
-        "text-halo-color": "rgba(98, 117, 98, 1)",
+        "text-halo-color": "#000000",
         "text-halo-width": 0,
-        "text-color": "rgba(30, 30, 32, 1)"
+        "text-color": "rgba(255, 255, 255, 1)"
       },
       "source-layer": "transport_lines"
-    },
-    {
-      "minzoom": 0,
-      "layout": {
-        "visibility": "visible"
-      },
-      "maxzoom": 24,
-      "filter": [
-        "all",
-        [
-          "!has",
-          "height"
-        ]
-      ],
-      "type": "fill-extrusion",
-      "source": "osm",
-      "id": "building_tilt_na",
-      "paint": {
-        "fill-extrusion-color": "rgba(166, 169, 162, 0.9)",
-        "fill-extrusion-height": 5,
-        "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": 1
-      },
-      "source-layer": "buildings"
-    },
-    {
-      "minzoom": 0,
-      "layout": {
-        "visibility": "visible"
-      },
-      "maxzoom": 24,
-      "filter": [
-        "any",
-        [
-          "has",
-          "height"
-        ]
-      ],
-      "type": "fill-extrusion",
-      "source": "osm",
-      "id": "building_tilt",
-      "paint": {
-        "fill-extrusion-color": "rgba(166, 169, 162, 0.9)",
-        "fill-extrusion-height": {
-          "property": "height",
-          "type": "identity"
-        },
-        "fill-extrusion-base": 0,
-        "fill-extrusion-opacity": 1
-      },
-      "source-layer": "buildings"
     }
   ],
   "sprite": "http://localhost:9999/mobility/osm_tegola_spritesheet3",
