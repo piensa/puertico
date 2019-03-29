@@ -3,6 +3,7 @@
 
 [webserver]
 port = ":9090"
+hostname = "localhost:9999"
 
 # Tegola offers three tile caching strategies: "file", "redis", and "s3"
 [cache]

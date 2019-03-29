@@ -21,8 +21,6 @@ END
   nginx-config = pkgs.writeText "nginx.conf" ''
   daemon            off;
   worker_processes  2;
-  proxy_cache_path /x/puertico/var/nginx levels=1:2 keys_zone=my_zone:10m inactive=60m;
-  proxy_cache_key "$scheme$request_method$host$request_uri";
 
   events {
     use           epoll;
@@ -37,17 +35,36 @@ END
 
     access_log    access.log  combined;
 
+    proxy_cache_path /x/puertico/var/nginx/ levels=1:2 keys_zone=my_zone:100m inactive=600m;
+    proxy_cache_key "$scheme$request_method$host$request_uri";
     server {
-        server_name   localhost;
-        listen        127.0.0.1:9999;
+      server_name   localhost;
+      listen        127.0.0.1:9999;
 
-        error_page    500 502 503 504  /50x.html;
+      error_page    500 502 503 504  /50x.html;
 
-        location      / {
-            proxy_cache my_zone;
-            add_header X-Proxy-Cache $upstream_cache_status;
-            root      /x/puertico/static;
-        }
+      location      / {
+        proxy_cache my_zone;
+        add_header X-Proxy-Cache $upstream_cache_status;
+        root      /x/puertico/static;
+      }
+
+      location /capabilities {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect     off;
+        proxy_pass http://localhost:9090/capabilities;
+      }
+
+      location /maps {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect     off;
+        proxy_pass http://localhost:9090/maps;
+      }
+
     }
   }
   '';

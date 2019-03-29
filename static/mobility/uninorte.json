@@ -896,7 +896,7 @@
   "sources": {
     "osm": {
       "type": "vector",
-      "url": "http://localhost:9090/capabilities/osm.json"
+      "url": "http://localhost:9999/capabilities/osm.json"
     }
   },
   "id": "f4652111-6a00-479a-a650-354311684bb3"
