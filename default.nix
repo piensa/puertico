@@ -6,6 +6,9 @@ let
   pg = pkgs.postgresql_11.withPackages(ps: [ps.postgis]);
   hostName = "127.0.0.1:9999";
   tegolaPort = "9090";
+  pwd = "/x/puertico";
+  stateDir = "${pwd}/state";
+  staticDir = "${pwd}/static";
   server_url = "http://${hostName}";
 
   index-html = pkgs.writeText "index-html" ''
@@ -1795,7 +1798,7 @@ hostname = "${hostName}"
 # Tegola offers three tile caching strategies: "file", "redis", and "s3"
 [cache]
 type = "file"
-basepath = "./var/cache"
+basepath = "${stateDir}/cache"
 
 #   OpenStreetMap (OSM)
 [[providers]]
@@ -2093,7 +2096,7 @@ END
 
     access_log    access.log  combined;
 
-    proxy_cache_path /x/puertico/var/nginx/ levels=1:2 keys_zone=my_zone:100m inactive=600m;
+    proxy_cache_path ${stateDir}/nginx levels=1:2 keys_zone=my_zone:100m inactive=600m;
     proxy_cache_key "$scheme$request_method$host$request_uri";
     server {
       server_name   localhost;
@@ -2109,7 +2112,7 @@ END
  
       location      / {
         add_header X-Proxy-Cache $upstream_cache_status;
-        root      /x/puertico/static;
+        root      ${staticDir};
       }
 
       location /capabilities {
@@ -2149,7 +2152,7 @@ END
     psql puertico -c "CREATE EXTENSION hstore;"
   '';
   puertico-nginx = pkgs.writeShellScriptBin "puertico-nginx" ''
-    nginx -c ${nginx-config} -p $PUERTICO_DATA
+    nginx -c ${nginx-config} -p ${stateDir}
   '';
   puertico-start = pkgs.writeShellScriptBin "puertico-start" ''
     pg_ctl -D $PGDATA -l $PGDATA/server.log start -w
@@ -2168,10 +2171,10 @@ END
      sha256 = "1170pqz2bhfq2msdylf9i1z53d1gyshipd4h6zf2i9wyxb7gz3l0";
   };
   puertico-createarea = pkgs.writeShellScriptBin "puertico-createarea" ''
-    osmconvert ${country-osm} -B=${area-poly}  -o=$PUERTICO_DATA/area.pbf
+    osmconvert ${country-osm} -B=${area-poly}  -o=${stateDir}/area.pbf
   '';
   puertico-loadarea = pkgs.writeShellScriptBin "puertico-loadarea" ''
-    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping ${imposm-config} -read $PUERTICO_DATA/area.pbf -write -overwritecache -srid 4326
+    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping ${imposm-config} -read ${stateDir}/area.pbf -write -overwritecache -srid 4326
     imposm  import -connection postgis://puertico:puertico@localhost/puertico -mapping ${imposm-config} -deployproduction -srid 4326
     psql puertico -a -f  ${piensa.puertico-osm}/postgis_helpers.sql
 #    psql puertico -a -f  ${piensa.puertico-osm}/postgis_index.sql
@@ -2179,7 +2182,7 @@ END
 in pkgs.stdenv.mkDerivation rec {
    name = "puertico";
 
-   src = builtins.filterSource (p: t: pkgs.lib.cleanSourceFilter p t && baseNameOf p != "state") ./.;
+   src = builtins.filterSource (p: t: pkgs.lib.cleanSourceFilter p t && baseNameOf p != "var") ./.;
 
    buildInputs = with pkgs; [
      pg
@@ -2202,8 +2205,8 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-createarea
    ];
   shellHooks = ''
-     export PUERTICO_DATA=$PWD/var
-     mkdir -p $PUERTICO_DATA/logs
-     export PGDATA=$PUERTICO_DATA/data
+     mkdir -p ${stateDir}/logs
+     mkdir -p ${stateDir}/nginx
+     export PGDATA=${stateDir}/data
   '';
 }
