@@ -88,6 +88,9 @@ END
     psql puertico -a -f  ${piensa.puertico-osm}/postgis_helpers.sql
 #    psql puertico -a -f  ${piensa.puertico-osm}/postgis_index.sql
   '';
+  puertico-run = pkgs.writeShellScriptBin "puertico-run" ''
+  puertico-tegola && puertico-nginx
+  '';
 in pkgs.stdenv.mkDerivation rec {
    name = "puertico";
 
@@ -114,6 +117,7 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-loadworld
     puertico-loadarea
     puertico-createarea
+    puertico-run
    ];
   shellHooks = ''
      mkdir -p var/logs

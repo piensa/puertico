@@ -7,6 +7,15 @@ Licensed under either of
 
 at your option.
 
+## Usage
+
+puertico-init
+puertico-createarea
+puertico-loadarea
+puertico-cache
+puertico-tegola && puertico-nginx
+
+
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
