@@ -854,8 +854,8 @@
       "source-layer": "buildings"
     }
   ],
-  "sprite": "https://puerti.co/mobility/osm_tegola_spritesheet3",
-  "glyphs": "https://puerti.co/mobility/fonts/{fontstack}/{range}.pbf",
+  "sprite": "http://localhost:9999/mobility/osm_tegola_spritesheet3",
+  "glyphs": "http://localhost:9999/mobility/fonts/{fontstack}/{range}.pbf",
   "created": "2017-01-04T21:12:33.904Z",
   "name": "mobility3d",
   "bearing": 0,
@@ -876,7 +876,7 @@
   "sources": {
     "osm": {
       "type": "vector",
-      "url": "https://puerti.co/capabilities/osm.json"
+      "url": "http://localhost:9090/capabilities/osm.json"
     }
   },
   "id": "f4652111-6a00-479a-a650-354311684bb3"
