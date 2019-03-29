@@ -57,7 +57,7 @@ END
     psql puertico -c "CREATE EXTENSION hstore;"
   '';
   puertico-nginx = pkgs.writeShellScriptBin "puertico-nginx" ''
-    nginx -c ${nginx-config} -p /x/puertico/var
+    nginx -c ${nginx-config} -p $PUERTICO_DATA
   '';
   puertico-start = pkgs.writeShellScriptBin "puertico-start" ''
     pg_ctl -D $PGDATA -l $PGDATA/server.log start -w
@@ -80,16 +80,13 @@ END
      sha256 = "1170pqz2bhfq2msdylf9i1z53d1gyshipd4h6zf2i9wyxb7gz3l0";
   };
   puertico-createarea = pkgs.writeShellScriptBin "puertico-createarea" ''
-    osmconvert ${country-osm} -B=${area-poly}  -o=area.pbf
+    osmconvert ${country-osm} -B=${area-poly}  -o=$PUERTICO_DATA/area.pbf
   '';
   puertico-loadarea = pkgs.writeShellScriptBin "puertico-loadarea" ''
-    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping conf/imposm3.json -read area.pbf -write -overwritecache -srid 4326
+    imposm import -connection postgis://puertico:puertico@localhost/puertico -mapping conf/imposm3.json -read $PUERTICO_DATA/area.pbf -write -overwritecache -srid 4326
     imposm  import -connection postgis://puertico:puertico@localhost/puertico -mapping conf/imposm3.json -deployproduction -srid 4326
     psql puertico -a -f  ${piensa.puertico-osm}/postgis_helpers.sql
 #    psql puertico -a -f  ${piensa.puertico-osm}/postgis_index.sql
-  '';
-  puertico-run = pkgs.writeShellScriptBin "puertico-run" ''
-  puertico-tegola && puertico-nginx
   '';
 in pkgs.stdenv.mkDerivation rec {
    name = "puertico";
@@ -117,10 +114,10 @@ in pkgs.stdenv.mkDerivation rec {
     puertico-loadworld
     puertico-loadarea
     puertico-createarea
-    puertico-run
    ];
   shellHooks = ''
-     mkdir -p var/logs
-     export PGDATA=$PWD/var/data;
+     export PUERTICO_DATA=$PWD/var
+     mkdir -p $PUERTICO_DATA/logs
+     export PGDATA=$PUERTICO_DATA/data
   '';
 }
