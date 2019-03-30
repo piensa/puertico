@@ -7,7 +7,7 @@ let
   hostName = "127.0.0.1:9999";
   tegolaPort = "9090";
   pwd = "/x/puertico";
-  stateDir = "${pwd}/state";
+  stateDir = "${pwd}/var";
   staticDir = "${pwd}/static";
   server_url = "http://${hostName}";
 
@@ -2096,8 +2096,6 @@ END
 
     access_log    access.log  combined;
 
-    proxy_cache_path ${stateDir}/nginx levels=1:2 keys_zone=my_zone:100m inactive=600m;
-    proxy_cache_key "$scheme$request_method$host$request_uri";
     server {
       server_name   localhost;
       listen        ${hostName};
@@ -2107,11 +2105,9 @@ END
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_cache my_zone;
       proxy_redirect     off;
  
       location      / {
-        add_header X-Proxy-Cache $upstream_cache_status;
         root      ${staticDir};
       }
 
@@ -2131,7 +2127,6 @@ END
         add_header etag "\"${builtins.substring 11 32 index-html.outPath}\"";
         alias ${index-html};
       }
-
 
       location /style.json {
         etag off;
